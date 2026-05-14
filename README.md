@@ -18,16 +18,17 @@ This project implements a Beer-style ray-sensor agent in pure Python, evolves CT
 Python environment managed with `uv`. Standard scientific Python only — `numpy`, `matplotlib`, `tqdm`. No third-party simulator or CTRNN library.
 
 ```bash
-uv sync          # create .venv and install dependencies
-uv run pytest    # run all tests
+uv sync                  # create .venv and install dependencies
+uv run pytest            # run all tests
+PYTHONPATH=src uv run python -m experiments.evolve   # run a script directly
 ```
 
 ## Running an experiment
 
 ```bash
-uv run python -m experiments.evolve
+PYTHONPATH=src uv run python -m experiments.evolve
 ```
-
+All direct script invocations require `\PYTHONPATH=src`. This is set automatically when running via pytest.
 This runs a 20-generation smoke test and writes output to `results/data/test_run/`.
 
 **Files created per run:**
