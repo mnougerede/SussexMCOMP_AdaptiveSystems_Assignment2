@@ -58,6 +58,14 @@ Plan these in from the start, not retrofit at the end.
 
 ---
 
+## Phase 2a — Persistence infrastructure (done)
+
+- [x] Pass 1: Config dataclasses — `CTRNNConfig`, `HPConfig`, `EnvConfig`, `AgentConfig`, `GAConfig`, `RunConfig`, `Condition` enum; JSON round-trip with typed reconstruction
+- [x] Pass 2: IO layer — atomic writes, manifest (idempotent register + update), checkpoint with RNG sidecar, per-generation history, best-per-gen, `get_git_commit`
+- [x] Pass 3: Stub experiment runner — `run_experiment` with git-mismatch guard, checkpoint-based resumption, `__main__` smoke-test block; all tests pass
+
+---
+
 ## Phase 3 — Build the simulator core
 
 This is two to three days of work, mostly mechanical. The whole simulator is small (~500 lines).

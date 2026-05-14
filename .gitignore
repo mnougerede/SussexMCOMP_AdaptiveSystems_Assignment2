@@ -32,6 +32,6 @@ htmlcov/
 .vscode/
 
 # Project-specific
-data/
-figs/
+results/data/
+results/figures/
 *.npy
