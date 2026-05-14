@@ -14,13 +14,22 @@ $$\rho(z) = \begin{cases}
 \dfrac{H_U - z}{1 - H_U} & H_U < z \le 1
 \end{cases}$$
 
-With Williams' values: $H_L = 0.25$, $H_U = 0.75$.
+**Bounds depend on the experiment.** Williams uses two different sets of values across his work:
+
+| Experiment | $H_L$ | $H_U$ | Source |
+|---|---|---|---|
+| Substrate-level analyses (signal propagation, oscillations) | 0.25 | 0.75 | Williams 2005 conference paper; Williams 2006 thesis Ch. 6 |
+| Evolvability experiments (ball-catching, discrimination) | 0.2 | 0.8 | Williams 2006 thesis Ch. 7 |
+
+**For our project we use the Chapter 7 values $H_L = 0.2$, $H_U = 0.8$**, since we're replicating the evolvability experiments. The lecture slides and conference paper use 0.25/0.75; this is the substrate-experiment value and not the right one for our context.
+
+Williams notes that the bounds are not derived from theory — sensitivity tests showed similar qualitative results for other values (Chapter 4 footnote). So the precise values are not load-bearing, but for replication consistency we match Chapter 7.
 
 ### Synaptic scaling
 
-$$\dot{w} = \frac{1}{\tau_w} \rho \, |w|$$
+$$\tau_w \dot{w} = \rho |w| \quad \Leftrightarrow \quad \dot{w} = \frac{1}{\tau_w} \rho |w|$$
 
-(The paper writes $\tau_w \dot{w} = \rho w$ but specifies the magnitude interpretation in prose. The lecture-slide form above is the cleaner statement of the same rule.)
+This form is given explicitly in Williams (2007); the 2005 paper specifies the same rule in prose.
 
 ### Intrinsic plasticity
 
@@ -46,17 +55,17 @@ The rule is **non-discriminating between excitatory and inhibitory afferents** �
 
 ### Worked example: neuron firing too high
 
-Let $z = 0.95$, so $\rho = (0.75 - 0.95) / (1 - 0.75) = -0.8$.
+Let $z = 0.95$, so with Chapter 7 bounds $\rho = (0.8 - 0.95) / (1 - 0.8) = -0.75$.
 
 Suppose this neuron has two afferents: $w_1 = +6$ (excitatory) and $w_2 = -4$ (inhibitory).
 
-Per timestep:
-- $\dot{w_1} = (1/40) \cdot (-0.8) \cdot |+6| = -0.12$ → $w_1$ shrinks toward zero
-- $\dot{w_2} = (1/40) \cdot (-0.8) \cdot |-4| = -0.08$ → $w_2$ also shrinks toward zero (rises since it was negative)
+Per timestep ($dt = 0.2$):
+- $\dot{w_1} = (1/40) \cdot (-0.75) \cdot |+6| = -0.1125$ → $w_1$ shrinks toward zero (per timestep change: $0.2 \cdot -0.1125 = -0.0225$)
+- $\dot{w_2} = (1/40) \cdot (-0.75) \cdot |-4| = -0.075$ → $|w_2|$ shrinks; $w_2$ rises toward zero from below
 
 So both magnitudes go down. The neuron receives less total drive (excitatory and inhibitory both weaker). $y$ approaches zero. $z$ approaches $\sigma(b)$.
 
-Simultaneously: $\dot{b} = (1/20) \cdot (-0.8) = -0.04$ → bias shifts negative. The sigmoid moves right. Even if $y$ stays near zero, $z$ now sits below 0.5.
+Simultaneously: $\dot{b} = (1/20) \cdot (-0.75) = -0.0375$ → bias shifts negative. The sigmoid moves right. Even if $y$ stays near zero, $z$ now sits below 0.5.
 
 Combined effect: $z$ falls back toward the comfort zone. ✓
 
@@ -65,8 +74,12 @@ Combined effect: $z$ falls back toward the comfort zone. ✓
 ## Implementation pseudocode
 
 ```python
-def compute_rho(z, h_l=0.25, h_u=0.75):
-    """Plastic facilitation as a function of firing rate."""
+def compute_rho(z, h_l=0.2, h_u=0.8):
+    """Plastic facilitation as a function of firing rate.
+
+    Default bounds are Williams 2006 Chapter 7 values (evolvability experiments).
+    For substrate-level experiments, use h_l=0.25, h_u=0.75.
+    """
     if z < h_l:
         return (h_l - z) / h_l
     elif z > h_u:
@@ -94,13 +107,13 @@ Notes for our implementation:
 
 ## Unit tests to write
 
-| Input | Expected output |
+| Input | Expected output (Chapter 7 bounds: $H_L = 0.2$, $H_U = 0.8$) |
 |---|---|
-| $z = 0.10$ | $\rho > 0$, bias increases, $|w|$ increases |
+| $z = 0.10$ | $\rho = +0.5$, bias increases, $|w|$ increases |
 | $z = 0.50$ | $\rho = 0$, no parameter change |
-| $z = 0.90$ | $\rho < 0$, bias decreases, $|w|$ decreases |
-| $z = 0.25$ | $\rho = 0$ (boundary) |
-| $z = 0.75$ | $\rho = 0$ (boundary) |
+| $z = 0.90$ | $\rho = -0.5$, bias decreases, $|w|$ decreases |
+| $z = 0.20$ | $\rho = 0$ (boundary) |
+| $z = 0.80$ | $\rho = 0$ (boundary) |
 | $z = 0.00$ | $\rho = +1$ (saturated low) |
 | $z = 1.00$ | $\rho = -1$ (saturated high) |
 | Excitatory ($w > 0$) and inhibitory ($w < 0$) afferents under $\rho < 0$ | both magnitudes shrink |
@@ -110,9 +123,9 @@ Notes for our implementation:
 ## Open questions worth flagging in writeup
 
 1. The piecewise-linear shape of $\rho$ is one of many possible homeostatic error signals. Alternatives: Gaussian centred at $(H_L + H_U)/2$; smooth sigmoid of distance from target; reward-modulated gating. The functional form is a design choice, not a derivation.
-2. The bounds $H_L = 0.25, H_U = 0.75$ are arbitrary (Williams' footnote 1). Some sensitivity testing might be useful in the implementation phase, but not a primary contribution.
-3. Williams runs synaptic scaling and intrinsic plasticity simultaneously. Whether either alone is sufficient is worth a brief check during implementation — should be a one-condition addition.
-4. Timescales $\tau_w = 40, \tau_b = 20$ are also chosen without explicit justification. The secondary extension (if pursued) could vary these.
+2. The bounds are arbitrary in the sense that Williams notes (Chapter 4 footnote) that sensitivity tests showed similar qualitative results for other values. They are not load-bearing, but we match Chapter 7's $0.2/0.8$ for replication consistency.
+3. Williams runs synaptic scaling and intrinsic plasticity simultaneously. Whether either alone is sufficient is mentioned in Williams' Chapter 6 results section. We follow the simultaneous-application choice.
+4. Timescales $\tau_w = 40, \tau_b = 20$ are chosen without explicit justification in Williams' work. Stolting et al. (2023) show that the timescale separation matters for whether HP-enabled oscillations emerge — at these values, HP is fast enough relative to neural dynamics to generate them. This is relevant to our discussion.
 
 ---
 

@@ -1,153 +1,159 @@
 # Experiments specification
 
-A working document that pins down exactly what experiments will be run, what dependent and independent variables they involve, and how results will be reported. Update as the plan firms up.
+Concrete plan for the experiments. Updated to reflect Option A. Read alongside `design_decisions.md`.
 
 ---
 
-## Experiment 1 — Substrate verification
+## Experiment 0 — Substrate-level sanity check
 
-**Purpose:** Verify that our HP implementation reproduces Williams' substrate-level result (HP improves signal propagation and oscillation likelihood). This is a sanity check, not a main result.
+**Purpose:** verify that the HP implementation reproduces Williams' substrate-level result (HP shifts random networks away from saturation). Sanity-check, not a main result.
 
-**Setup:** Random CTRNNs of size 5, fully connected. Generate 500 random networks. For each: test signal propagation and oscillation likelihood before HP, then after applying HP for 6000 timesteps with $I = 0$.
+**Setup:** Generate 100 random 5-node fully-connected CTRNNs with parameters drawn from Williams' ranges. For each, run a trial with $I = 0$ and record per-neuron firing rate distribution. Then apply HP for 6000 timesteps. Repeat the trial and record again.
 
-**Dependent variables:**
-- Mean $\Delta z$ per node in response to changes in input (Williams' signal propagation metric)
-- Proportion of (network, initial condition) pairs that lead to oscillations (Williams' oscillation metric)
+**Output:** Histogram of firing rates across all neurons, before and after HP. Mean fraction of neurons in $[H_L, H_U]$, before and after.
 
-**Independent variable:** HP applied or not.
+**Expected:** mass shifts from saturated tails (near 0 and near 1) toward the middle. If not, the implementation has a bug.
 
-**Expected result:** HP increases both. If not, our implementation has a bug.
-
-**Status:** Optional sanity check. Skip if compute-budget pressure is high.
+**Status:** runs in minutes; no compute concern.
 
 ---
 
-## Experiment 2 — Williams replication on phototaxis
+## Experiment 1 — Williams replication (Williams Chapter 7 Experiments 1 and 2)
 
-**Purpose:** Reproduce Williams' core qualitative finding (HP-during-development helps; HP-during-behaviour hurts) on the moving-light phototaxis task in Sandbox.
+**Purpose:** reproduce Williams' four-condition ball-catching evolvability result.
 
-**Setup:**
+**Conditions:**
 
-- Agent: differential-drive in Sandbox with 2 light sensors
-- Network: 5-neuron fully connected CTRNN (2 sensor, 1 interneuron, 2 motor)
-- Task: moving light source on a fixed trajectory (e.g. constant-velocity horizontal sweep, or sinusoidal)
-- Fitness: mean negative distance to light over trial duration, normalised to $[0, 1]$
-- Trial length: TBD; long enough to capture the moving light's full trajectory
-- GA: population 30, 300 generations, elitism + point mutation, asexual
+| Condition | HP during development phase | HP during fitness trial |
+|---|---|---|
+| **Baseline** | off | off |
+| **Dev-only** | on (6000 timesteps before each trial) | off (HP frozen) |
+| **Online** | off | on (HP active throughout trial) |
+| **Dev+online** | on (6000 timesteps) | on (HP remains active) |
 
-**Three conditions:**
-1. **Baseline:** No HP. Random CTRNN, evolution proceeds directly.
-2. **Developmental HP:** HP runs for 6000 timesteps with the agent stationary in the environment and motors disabled (naturalistic stationary input). Weights and biases are then frozen. Evolution proceeds on the post-development network.
-3. **Online HP:** HP active throughout evolution and during all fitness trials.
+**Per-condition:** 5 evolutionary runs, different seeds. Population 30, 300 generations.
 
-**Runs:** 5 evolutionary runs per condition (different random seeds).
+**Per-individual fitness evaluation:** ~20 ball-catching trials with circles dropped at randomly-chosen horizontal offsets and velocities, as specified in Williams Chapter 7 section 7.4.2. Fitness $= \sum_i (1 - d_i)$ over trials.
 
-**Dependent variables:**
-- Mean best fitness per generation (averaged across runs)
-- Distribution of final fitnesses
+**Outputs:**
+- Best-fitness-per-generation curves, mean and error band across runs, one per condition (Williams Figure 7.2/7.3 equivalent)
+- Final fitness box plots across conditions
+- Per-condition mean and standard deviation of final fitness
 
-**Plot:** fitness-vs-generation curve, three lines, error bands across runs. Box plots of final fitness per condition.
+**Expected:** Williams found that on ball-catching, Dev-only and Baseline reach similar final fitnesses but Dev-only progresses faster in early generations; Online and Dev+online are worse than Baseline. Qualitative reproduction of this ordering is the gate.
 
-**Expected result:** Condition 2 outperforms Conditions 1 and 3. If not, this is itself interesting and worth analysing — but the qualitative replication is the gate.
+**Compute estimate:** 4 conditions × 5 runs × 300 generations × 30 individuals × ~20 trials × ~0.05s/trial ≈ 9 hours total, single-threaded. Halved with 2-way parallel, etc.
 
----
-
-## Experiment 3 — Developmental duration sweep (primary contribution)
-
-**Purpose:** Quantify the relationship between developmental phase duration and post-evolution fitness. Williams' choice of 6000 timesteps is arbitrary; this experiment maps out the space.
-
-**Setup:** As Experiment 2 Condition 2 (developmental HP, then frozen, then evolution), but with developmental phase duration as the independent variable.
-
-**Duration values:** $\{0, 500, 1500, 3000, 6000, 12000\}$ timesteps. Note: duration 0 is the no-HP baseline; duration 6000 matches Williams.
-
-**Runs:** 5 evolutionary runs per duration value.
-
-**Dependent variables:**
-- Mean best fitness per generation
-- Final fitness (mean and distribution across runs)
-- Neuron-level metrics at end of development: proportion of neurons in viable range; mean $|y|$ per neuron
-
-**Plots:**
-- Fitness-vs-generation curves, one per duration, on shared axes
-- Final fitness vs duration with error bars (the headline plot)
-- Neuron-in-viable-range fraction vs duration (auxiliary plot)
-
-**Hypotheses to evaluate:**
-- H1 (monotonic): more development = more benefit, saturating at some point
-- H2 (threshold): there is a minimum duration below which HP provides no benefit; above it, benefit is roughly constant
-- H3 (peak): too little or too much development is bad; there is an optimum
-- H4 (no effect): duration does not matter once $> 0$
-
-**Expected result:** Probably some mix of H1 and H2 — benefit rises with duration then plateaus. But H3 would be more interesting if it occurs.
+**Status:** the headline experiment. Most of the compute budget goes here.
 
 ---
 
-## Experiment 4 — Secondary extension (optional)
+## Experiment 2 — Behavioural trajectory analysis
 
-**Pick at most one of the following, only if time permits.**
+**Purpose:** show what the evolved controllers actually do in each condition. Williams does not include this in the conference paper and only minimally in the thesis.
 
-### 4a. HP timescale variation with online HP
+**Setup:** From each evolutionary run in Experiment 1, take the best individual at the final generation. For each condition, identify three representative individuals (best across runs, median, worst). For each: run a small number of trials (e.g. 5-8) with seeded shape sequences shared across individuals so the comparison is direct.
 
-**Setup:** Online HP condition (as Experiment 2 Condition 3) with $\tau_w, \tau_b$ varied. Williams uses $\tau_w = 40, \tau_b = 20$ — slow. Try faster ($\tau_w = 4, \tau_b = 2$) and slower ($\tau_w = 400, \tau_b = 200$).
+**Outputs:**
+- Per-individual trajectory plot: agent x-position over time, all shape positions, with vertical lines at shape arrival/departure
+- Alongside each trajectory plot: per-neuron firing rate over time, with $H_L$ and $H_U$ as horizontal lines
+- For each condition: at least one such combined plot, ideally three
 
-**Question:** Does HP-during-behaviour work better when its timescale is much faster (so transients are short relative to trial length) or much slower (so HP barely changes the parameters during a trial)?
+**Analysis target:** qualitative comparison of behavioural strategies. Do HP individuals use different neural strategies than non-HP? Are firing rates near saturation, in the viable range, or oscillating?
 
-**Why interesting:** Tests the "transients" hypothesis for Williams' negative result on online HP. If faster timescales rescue online HP, the failure was a transient problem; if not, the failure is more fundamental.
-
-### 4b. Alternative facilitation function
-
-**Setup:** Replace the piecewise-linear $\rho$ with a smooth alternative — a Gaussian centred at $(H_L + H_U)/2$ with appropriate width. Re-run Experiments 2 and 3.
-
-**Question:** Does the discontinuity in $\rho$'s derivative at $H_L, H_U$ contribute to its difficulty as an online rule?
-
-### 4c. Development input regime
-
-**Setup:** Compare three sub-conditions of Experiment 2 Condition 2: zero input ($I = 0$) vs naturalistic stationary vs random input.
-
-**Question:** How much does the input regime during development affect the post-development network and its evolvability?
+**Status:** post-hoc analysis of saved data from Experiment 1. Cheap compute.
 
 ---
 
-## Visualisation outputs per experiment
+## Experiment 3 — Per-neuron viable-range diagnostics across evolution
 
-For each experiment, the following plots should be produced automatically from saved data:
+**Purpose:** track whether neurons stay in their viable range as evolution proceeds, per condition. Bridges Williams' substrate-level and evolvability claims.
 
-1. Fitness curve(s) with error bars
-2. Final fitness box plots across conditions
-3. Per-neuron $z$ time series during development (representative individuals only)
-4. Histogram of $z$ across neurons before vs after HP
-5. Time-in-viable-range heatmap
-6. Per-neuron $w$ and $b$ trajectories during development (representative individuals only)
-7. For Experiment 3: final-fitness-vs-duration headline plot
+**Setup:** For each condition's evolutionary runs, at each saved generation (every 10 generations is fine for plotting density), take the best individual and run a single representative trial. Record per-neuron fraction of timesteps with firing rate in $[H_L, H_U]$.
 
----
+**Outputs:**
+- Per-condition heat map or line plot: y-axis = neuron index (1 to 5), x-axis = generation, colour or line height = viable-range fraction
+- Cross-condition comparison: mean viable-range fraction (averaged across neurons and runs) over generations, one line per condition
 
-## Compute budget estimate
+**Analysis target:**
+- Does the Baseline (no HP) condition find networks where evolution naturally pushes neurons into the viable range, or do successful Baseline controllers tolerate saturation?
+- In Online and Dev+online, do firing rates stay in the viable range — or has HP already done its job and evolution can rely on it?
 
-Per fitness evaluation: roughly 1 second (CTRNN with a few thousand timesteps + Sandbox simulation overhead). Rough estimates:
-
-- Experiment 1: 500 networks × 2 conditions × 1000 input tests = 1M evaluations × ~0.1s = ~30 hours. Probably skip or scale down.
-- Experiment 2: 3 conditions × 5 runs × 300 gens × 30 pop × 1s = 135k seconds ≈ 37 hours.
-- Experiment 3: 6 durations × 5 runs × 300 gens × 30 pop × 1s = 270k seconds ≈ 75 hours.
-
-These are total CPU-seconds; with parallelisation across cores, much faster. But the absolute numbers indicate Experiments 2 and 3 are the budget-dominant items, and they need to be planned with care (efficient implementation, checkpointing, parallel runs).
-
-**Mitigations:**
-- Run experiments in parallel processes (one per evolutionary run)
-- Reduce population or generation count if early results suggest fitness saturates earlier
-- Skip Experiment 1 if substrate-level verification is not behaviourally informative
-- Save raw data per run so partial completion is still usable
+**Status:** post-hoc analysis. Adds modest compute (re-running trials, not re-evolving).
 
 ---
 
-## Failure-mode protocol
+## Experiment 4 — Frozen-HP test (the Stolting et al. test)
 
-If an experiment does not produce the expected result, do not panic. Possible explanations to investigate, in order:
+**Purpose:** test whether HP-during-behaviour controllers rely on continued HP for their behaviour. The project's clearest single scientific question.
 
-1. **Implementation bug** — verify HP rule with unit tests, check CTRNN against reference
-2. **Wrong default parameter** — check $H_L, H_U, \tau_w, \tau_b$ values
-3. **Task too easy/hard** — examine baseline fitness curve; if it saturates immediately, task is too easy; if it never improves, task is too hard
-4. **Trial length wrong** — if trials end before behaviour stabilises, fitness will be noisy
-5. **Genuine finding** — if all of the above check out, the result may be real. Investigate and report.
+**Setup:** For each evolved Online and Dev+online individual at the final generation:
+1. Record current fitness with HP active (re-evaluate, not just trust the GA's last fitness; we want a robust measurement with a fresh seeded trial sequence)
+2. Freeze the network parameters at their current value
+3. Re-evaluate fitness with HP off
+4. Record the fitness drop
 
-The replication gate (Experiment 2) is critical. If we cannot reproduce Williams qualitatively, every downstream experiment is undermined. Spend time here.
+**Controls:**
+- Dev-only individuals already had HP frozen during evolution; re-evaluating these in step 3 is a check on measurement noise
+- Baseline individuals never had HP; same check
+
+**Outputs:**
+- Box plot of fitness-drop-on-freezing by condition
+- Scatter: original fitness vs. frozen fitness, one point per individual, coloured by condition
+- Per-individual neural state time-series: with HP and with HP frozen, side by side, for two or three representative cases
+
+**Analysis target:**
+- Online individuals: large fitness drop → behaviour was HP-enabled (Stolting et al.'s prediction holds); small drop → HP was incidental, the parameters at the end of evolution were already good
+- Dev+online individuals: same logic, with the caveat that they had a developmental head-start
+- Magnitude of effect across the condition
+
+**Status:** the contribution's main result. The most important figure for the report.
+
+---
+
+## Run plan
+
+### Week 1
+- Day 1: simulator core build (CTRNN, sensors, agent, environment)
+- Day 2: simulator validation; HP module; HP unit tests; substrate sanity check (Experiment 0)
+- Day 3: GA; single-condition shakedown run
+- Day 4: launch Experiment 1; while it runs, write trajectory and diagnostic plotting code
+- Day 5: Experiment 1 results in; Experiments 2 and 3 run (post-hoc)
+
+### Week 2
+- Day 6: Experiment 4 run
+- Days 7–9: writing — methods first, then results and analyses
+- Days 10–12: writing — discussion, then introduction, then abstract
+- Day 13: figures polish, symbol audit, citation check
+- Day 14: final pass, submit
+
+This is tight. Slip on Day 4 by a day and we lose Experiment 4 buffer. Worth running the GA in the background from Day 3 onwards while the rest of the work proceeds.
+
+---
+
+## Compute risk
+
+The four-condition experiment is the compute bottleneck. Mitigations if it's running slow:
+
+- Reduce population from 30 to 20
+- Reduce generations from 300 to 200
+- Reduce runs per condition from 5 to 3
+- Parallelise fitness evaluation across population members
+
+Saving raw data per generation means we can cut the experiment short and still have usable results.
+
+---
+
+## What we'll write up if everything works
+
+The four-condition replication is the table-stakes deliverable: it shows we faithfully reproduced Williams. The three analyses are the contribution. The frozen-HP test, in particular, has a clear pre-registered hypothesis with a binary-ish answer.
+
+## What we'll write up if Experiment 1 doesn't replicate Williams
+
+This is the hardest scenario. Possible reasons: (a) implementation bug, (b) population/generation count too small to see the effect, (c) some methodological difference between our simulator and Williams' that we haven't identified. The reporting strategy then becomes: describe what we found, characterise where it differs from Williams, attempt the three analyses anyway since they don't strictly require Williams' ordering to hold. This is a defensible piece of work even if the headline replication fails.
+
+## What we'll write up if Experiment 4 gives a null result
+
+Stolting et al.'s prediction is that fitness drops on freezing. If it doesn't, that's still a publishable finding — their CPG-task result doesn't transfer to Williams' agent task. The discussion changes shape but the report stays substantive: we have a clear empirical claim and an explanation of why the prediction failed.
+
+Either way, the project has real content. The only failure mode is not finishing the experiments — which is what the run plan is designed to prevent.

@@ -1,177 +1,137 @@
 # Design decisions
 
-A working document for the methodological choices that need to be made for this project. Each section states the question, summarises the options, gives a current best guess, and flags whether it needs to be resolved before the proposal, before implementation, or before writing.
+A working document for the methodological choices in the project. Each section states the question, gives the current choice with rationale, and notes anything still open.
+
+This document reflects the Option A decision: own Python simulator, Williams (2006) Chapter 7 ball-catching replication, three analyses as the extension.
 
 ---
 
-## Task choice
+## Simulator: own implementation, not Sandbox
 
-**Question:** What task should the Sandbox agent perform?
+**Decision:** Build the simulator from scratch in pure Python.
 
-**Constraint:** The task needs to be non-trivial enough that internal CTRNN dynamics (oscillations, integration over time) actually matter for performance. Pure phototaxis is too easy — a Braitenberg vehicle solves it without any learning, so HP cannot demonstrably help.
+**Reasoning:** Williams' Chapter 7 evolvability experiments use ray sensors returning signal inversely proportional to distance to an intersected surface. Sandbox provides light sensors (omnidirectional or directed cones) and bump sensors but no ray or distance sensors — Chris confirms this in the Sandbox demos notes ("there is no arena or wall sensor in Sandbox, as there are no wall objects per se"). The shape discrimination task in particular requires depth profiling of the falling object across the ray fan; light sensors with shadow-casting bodies cannot produce equivalent input.
 
-**Options considered:**
+Williams' Chapter 6 photosensitive robot **is** Sandbox-compatible (two light sensors, differential drive) but Williams himself uses it only for qualitative behavioural illustration. He notes that phototaxis does not require internal dynamics, which is precisely why he reserved the quantitative evolvability experiments for the harder ray-sensor tasks. Building on Sandbox's phototaxis would make the project conceptually weaker even if implementationally easier.
 
-| Task | Pros | Cons |
-|---|---|---|
-| Static phototaxis | Trivial to set up; standard Sandbox | Too easy; HP cannot show benefit |
-| Phototaxis with moving light | Requires temporal prediction; one fitness number; parametrically scalable difficulty | Implementation requires custom light motion |
-| Two-light discrimination | Closer to Williams' shape discrimination | Task design needs care; may end up easy |
-| Phototaxis with sensor inversion (Lab 4-style) | Uses existing Sandbox infrastructure | Adaptation question entangles with HP question |
-| Light-seeking with obstacles | Genuinely needs internal state for navigation | Complex Sandbox setup |
+The Beer-style agent is small. Beer's whole specification fits on two pages of his 1996 paper, and Williams Chapter 7 sections 7.4.1 and 7.4.2 are similarly compact. The simulator is roughly 500 lines of Python.
 
-**Current choice:** Phototaxis with a moving light source. Primary because (a) it is the cleanest minimal extension of standard phototaxis that requires temporal prediction, (b) it is parametrically scalable in difficulty, (c) it is implementable in Sandbox without heavy custom infrastructure.
-
-**Status:** To be discussed with Chris in proposal email. Frame as "I considered the alternatives X, Y, Z; I propose moving light because of A, B, C; happy to consider alternatives".
+**Methodological benefit:** the methods section gets stronger because we own and can describe every component. Chris's Assignment 1 group feedback explicitly emphasised the methods section: "if you can't/won't explain it, you have no business using it."
 
 ---
 
-## Sensory input during the developmental phase
+## Task: ball-catching only, not discrimination
 
-**Question:** During the 6000-timestep developmental phase, what input is the CTRNN receiving?
+**Decision:** Implement and run only the ball-catching task.
 
-**The problem:** Williams (2005) does not specify. The lecture slides do not specify. The 2007 paper may or may not — has not been read yet.
+**Reasoning:** Williams himself reports in Chapter 7 that the discrimination task was very difficult for HP-plastic networks; the conference paper and thesis both note discrimination performance remained poor across most conditions. Including it adds substantial implementation complexity (diamond geometry, two-shape trial generation, the discrimination fitness function) without a clear payoff: even if our results match Williams' patterns there, the patterns are weaker and harder to interpret.
 
-**Why it matters:** HP adapts the network's parameters in response to the firing rates the network is exhibiting. The firing rates depend on the input. Different input regimes during development will produce different post-development networks.
-
-**Options:**
-
-| Input regime | Description | Theoretical implication |
-|---|---|---|
-| Zero input | $I = 0$ for all sensors throughout development | HP settles network based purely on internal dynamics; most conservative choice |
-| Random input | $I$ drawn from a uniform distribution each timestep | HP averages over input distribution; closer to ensemble-level finding in Sections IV |
-| Naturalistic stationary | Agent placed in environment, motors disabled, receives real sensor readings | HP adapts to input distribution it will actually face during behaviour |
-| Embodied developmental motion | Agent moves randomly during development with motors active | HP adapts to self-generated sensorimotor coupling |
-
-**Current choice:** Naturalistic stationary input — agent in environment, motors disabled, receiving real sensor input. Rationale: HP adapts to the actual input distribution the network will face during behaviour, which is the most natural reading of "before behaviour".
-
-**Optional extension:** Compare with zero input as a control condition. If results differ qualitatively, this is itself a finding worth reporting.
-
-**Status:** Resolve before implementation phase. Mention in methods section. Worth one sentence in the proposal.
+**Mention in discussion:** the choice to use ball-catching only, with a note that discrimination is more demanding and was set aside for time-budget reasons. Frame discrimination as natural future work.
 
 ---
 
-## CTRNN size and topology
+## CTRNN architecture: Williams Chapter 7 specification exactly
 
-**Question:** How many neurons? Fully connected or sparse? Sensor and motor mappings?
+**Decision:** 5-node fully connected CTRNN, 3 sensor neurons and 2 motor neurons, **no interneurons**. Each ray sensor feeds a unique node. Motor output is read from the two non-sensor nodes.
 
-**Williams' choice:** 5 neurons, fully connected, 3 sensor neurons and 2 motor neurons, no interneurons.
+**Reasoning:** This is exactly Williams' Chapter 7 specification (page 120 of the thesis). Deviating from it complicates direct comparison with Williams' results.
 
-**Constraints for our agent:** We are using a 2-light-sensor differential-drive Sandbox agent. So 2 sensor neurons and 2 motor neurons minimum.
-
-**Current choice:** 5 neurons, fully connected. 2 sensor neurons (one per light sensor), 2 motor neurons (one per wheel), 1 interneuron. This is the minimum that lets the network have internal capacity beyond direct sensor-motor coupling, and matches Williams' size.
-
-**Status:** Default. Can be revisited if it does not work.
+The absence of interneurons is conceptually striking but it's what Williams used. Mention in methods that this is a minimal architecture and that one could investigate larger networks (which Williams himself does in Chapter 7 Experiment 4).
 
 ---
 
-## Performance / fitness metric
+## HP target range: Williams Chapter 7 values
 
-**Question:** What does "good behaviour" mean numerically?
+**Decision:** $H_L = 0.2$, $H_U = 0.8$ for the evolvability experiments.
 
-**Williams' choice:** Mean fitness over 10 trials; normalised to $[0, 1]$. For ball catching: proportion of objects caught. For discrimination: catch circles, avoid diamonds.
-
-**For moving-light phototaxis, options:**
-
-| Metric | Description |
-|---|---|
-| Final distance | Distance to light at end of trial |
-| Mean distance | Distance to light averaged over trial duration |
-| Integrated negative distance | Sum of (max_distance − current_distance) over time; rewards being close longer |
-| Time within radius | Fraction of timesteps the agent is within $r$ of the light |
-
-**Current choice:** Mean negative distance (lower is better), normalised so 1.0 = perfect tracking and 0.0 = no improvement over a stationary agent. This rewards both reaching the light and tracking it consistently.
-
-**Status:** Resolve before Milestone 3 (replication). Probably written into proposal methods section.
+**Reasoning:** Williams uses $[0.25, 0.75]$ for the substrate-level analyses in Chapter 6 and the conference paper, but **switches to $[0.2, 0.8]$ in Chapter 7** (page 121 of the thesis). The values used should match the chapter being replicated, not the values quoted in lecture slides or the conference-paper extract. This is a small but important detail — flag it in the methods section.
 
 ---
 
-## Evolvability vs. trained performance — what we are measuring
+## Plasticity timescales: Williams values
 
-**Question:** Is the dependent variable evolvability (fitness over generations) or post-evolution task performance?
+**Decision:** $\tau_w = 40$, $\tau_b = 20$.
 
-**Williams' choice:** Evolvability — best fitness in population across 500 generations, plotted as a curve.
-
-**Considerations:**
-
-- Evolvability is more aligned with Williams' framing and with the module's evolutionary-robotics material.
-- Post-evolution performance is a different question: "given an already-good network, does HP refine it?" — which is not what Williams asked.
-- Evolvability is more expensive to measure (need to run a full GA, multiple times, for each condition).
-
-**Current choice:** Evolvability as primary measure. Compute budget allowing.
-
-**Compute budget note:** With $N$ duration sweep values $\times$ 2 conditions (with/without HP) $\times$ $K$ evolutionary runs $\times$ 500 generations $\times$ 50 population $\times$ trial length, total cost scales as $N \cdot K \cdot 25000 \cdot \text{trial cost}$. For $N = 6$, $K = 5$, this is 750k fitness evaluations. Achievable but needs efficient implementation.
-
-**Status:** Resolved. Implementation must be designed for efficient batched fitness evaluation.
+**Reasoning:** Williams reports that both rules give similar results when applied independently. Combined rules are what he uses in the published comparisons, and these timescale values are reported as the canonical choice. Sensitivity to these is mentioned in Williams' Chapter 6 results section but not systematically explored.
 
 ---
 
-## GA design
+## Sensory input during developmental phase
 
-**Question:** What evolutionary algorithm specifics?
+**Decision:** Run the developmental phase with **the agent stationary in the environment receiving real sensor input** from a fixed scene of falling shapes — same shape generation procedure as during fitness trials, but with motors disabled so the agent does not move.
 
-**Williams' choice:** Population 50, 500 generations, elitism + point mutation, no crossover, asexual. 10 runs per condition.
+**Reasoning:** Williams' thesis doesn't fully specify the developmental-phase input regime, only that "homeostatic plasticity is applied for a period in each trial prior to fitness assessment" (Chapter 7, page 119). This implies the agent is in the environment but not yet acting — the natural reading is that it receives input but doesn't move. This is also the closest to the biological analogy: HP adapts to the input distribution the network will face.
 
-**Current choice:** Match Williams qualitatively but reduce numbers to fit compute budget. Population 30, 300 generations, elitism + point mutation. 5 runs per condition. To be revisited based on Sandbox/`stochsearch` infrastructure.
-
-**Status:** Resolve when reading Lab 6/7 materials and `stochsearch` documentation.
+Note for methods: this choice should be stated clearly. The alternative (zero input, or random input) is a reasonable choice we considered but did not adopt.
 
 ---
 
-## Transient handling
+## Number of evolutionary runs per condition
 
-**Question:** When testing fitness, how do we handle the transient period during which a plastic CTRNN's dynamics are not yet settled?
+**Decision:** 5 runs per condition (Williams used 10), 30 population × 300 generations (Williams used 50 × 500).
 
-**Options:**
+**Reasoning:** Compute budget. Williams' setup is 4 conditions × 10 runs × 500 generations × 50 individuals × ~20 trials per fitness evaluation. We scale down to keep the project runnable in two weeks: 4 × 5 × 300 × 30 × (some trial count). Adequate for qualitative replication; we lose some statistical resolution but the qualitative ordering Williams observed should still be visible.
 
-| Approach | Pros | Cons |
-|---|---|---|
-| Fixed development duration (Williams' approach) | Simple; matches paper; comparable across conditions | Arbitrary; may overshoot or undershoot equilibrium |
-| Equilibrium-detection-then-test | More principled; ensures fair comparison | Implementation messier; needs robust convergence test |
-| Discard initial $N$ timesteps of fitness evaluation | Simple compromise | Still arbitrary |
-
-**Current choice:** Fixed duration for primary results (matches Williams). Equilibrium detection as an optional secondary analysis ("how does actual equilibrium time vary with duration, and does it match Williams' arbitrary 6000?").
-
-**Status:** Resolved for primary results.
+**Acknowledge in discussion:** the run count limits the statistical power of any quantitative claims. Headline results need to be robust to this limit.
 
 ---
 
-## CTRNN implementation: from scratch or library?
+## Performance metric: Williams' ball-catching fitness
 
-**Question:** Write our own CTRNN or use `madvn/CTRNN`?
+**Decision:** Use Williams' fitness function exactly: $\sum_i (1 - d_i / d_{max})$ over trials, where $d_i$ is the horizontal distance between agent and shape centres when their leading edges meet, normalised to $[0, 1]$. Williams' thesis equation 7.3 gives the precise form.
 
-**Current choice:** Write our own. Reasons: total control, transparency, easy to add HP. Use `madvn/CTRNN` as a reference. Approximately 50 lines of Python.
-
-**HP rule:** Definitely write our own. There is no library specifically for the Williams rule.
-
-**Agent / environment:** Use Sandbox.
-
-**GA:** Use `stochsearch` or Sandbox-provided GA, supplemented or replaced if needed.
-
-**Status:** Resolved.
+**Reasoning:** Direct comparability with Williams' published curves. Any change to the fitness function obscures the replication.
 
 ---
 
-## Visualisation strategy
+## What we are NOT doing
 
-**Question:** What standard visualisations do we want from every experiment?
+Spelled out so we don't drift back into them:
 
-**Plan:**
+- **No discrimination task** in the main experiments
+- **No duration sweep** (Williams' Experiment 2 already addresses this with a single 6000-timestep value, and the literature has moved on)
+- **No phototaxis or moving-light task** (Sandbox-driven idea that didn't survive the move to own-simulator)
+- **No $\rho$ functional-form variations** in the primary experiments
+- **No Hebbian plasticity comparison** (interesting future work; out of scope)
 
-1. Per-trial: time series of $z$ for each neuron, with $[H_L, H_U]$ shaded. Time series of $w$ (one line per afferent connection) and $b$ for each neuron.
-2. Per-condition: histogram of $z$ across all neurons over all timesteps. Heat map of "time spent in viable range" per neuron.
-3. Per-experiment: fitness curve over generations, with error bars across runs. Box plots of final fitness across conditions.
-4. Optional: live overlay of $\rho(z)$ curve during development with current $z$ marked. Useful for intuition-building and demos.
-5. Optional: equations, definitions, and live parameter values as sidebar panel in main visualisation. Useful for demonstration.
+---
 
-**Status:** Build into simulation infrastructure from the start.
+## Three analyses Williams did not perform (the contribution)
+
+### Behavioural trajectory analysis
+
+For each condition, select representative individuals (best-of-best, median-of-best, perhaps worst-of-best). Plot agent x-position and shape (x, y)-position over time across a handful of representative trials. Overlay firing rates of all 5 neurons alongside. Compare strategies qualitatively across conditions.
+
+**Why this matters:** Chris's group feedback explicitly called out "showing only learning curves and aggregate statistics without examples of actual learned/evolved behaviours is a route to a low mark." Williams' published figures are all fitness curves; no individual behaviours are shown in the conference paper, and only minimal examples in the thesis.
+
+### Per-neuron viable-range diagnostics across evolution
+
+For each condition, at each generation, take the best individual; run a representative trial; record for each neuron the fraction of timesteps its firing rate is in $[H_L, H_U]$; plot the resulting per-neuron-by-generation fraction over the course of evolution.
+
+**Why this matters:** Williams' substrate-level claims (HP keeps neurons in the viable range) and his evolvability claims (HP-during-development helps) have not been directly connected to each other in the literature. This analysis bridges them: it asks whether the substrate-level effect persists through evolution, in each condition.
+
+### Frozen-HP test (the Stolting et al. test)
+
+For each evolved HP-during-behaviour individual, freeze the parameters at the end of evolution and re-evaluate fitness. Compare with the HP-development-only group (where HP is already frozen for trials) as a control for measurement noise.
+
+**Why this matters:** Stolting et al. (2023) found that some CTRNN oscillations in CPG tasks are HP-enabled — they collapse when HP is frozen. They speculated at the end of their paper that this might explain Williams' poor HP-during-behaviour results, but they did not test the claim on Williams' agent setup. We do. If HP-during-behaviour individuals show large fitness drops on freezing, the speculation is supported; if not, the poor HP-during-behaviour result must have another explanation.
+
+This is the project's clearest single scientific question.
+
+---
+
+## Compute budget and parallelisation
+
+Each fitness evaluation: 5 neurons × ~1000-2000 timesteps × ~20 shapes per trial. Approximately 0.1-0.5 seconds per evaluation depending on implementation efficiency.
+
+Full experiment: 4 conditions × 5 runs × 300 generations × 30 individuals = 180,000 evaluations × 0.3s = ~15 hours single-threaded. Manageable on a laptop overnight, or much faster if parallelised across cores using `multiprocessing` (Williams' fitness function is trivially parallelisable across population members).
+
+**Plan:** implement single-threaded first; parallelise if it becomes a bottleneck. Save raw data after each run so partial results are usable.
 
 ---
 
 ## Reproducibility
 
-**Question:** How to ensure experiments can be re-run and pre-empted compute does not lose work?
+Each evolutionary run is initialised from a different seed. Seeds are recorded in the run output. Raw per-generation data (best genotype, fitness statistics) saved as compressed numpy arrays. All plots regenerated from saved data, not from live runs.
 
-**Plan:** Use a deterministic seed system. Save raw data (per-trial firing rates, weights, biases, fitnesses) to disk in a structured format (e.g. compressed `.npz` per run). All plots generated from saved data, not live. Configuration files for each experiment. Logs of all runs.
-
-**Status:** Build in from the start. Lessons from Assignment 1 apply.
+This was a hard lesson from Assignment 1: keep the analysis and plotting code separate from the experiment runner so that a failed plot doesn't require a re-run of the experiment.

@@ -1,2 +1,2 @@
 # Agent
-Sandbox glue: wires the CTRNN into a Sandbox agent.
+Agent body, motor mapping, and kinematics. Horizontal motion only.
