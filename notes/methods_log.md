@@ -85,6 +85,8 @@ What the implementation does (relevant to our methods, described as if our own p
 - Each call to its `euler_step(I)` method applies eq. (3) above to all nodes simultaneously, then computes eq. (2) to update $z$.
 - It exposes $W$, $b$, $\tau_y$, $y$, $z$ as mutable attributes, which our HP module reads and writes between Euler steps.
 
+The upstream source was vendored from commit `bd1b62150ab1af6d24ade69ece999e39f1f188e7` of `madvn/CTRNN` on 2026-05-15. The README 2-neuron sinusoidal oscillator example runs unchanged under numpy 2.2.4 — no patches were required. The vendored file is `src/ctrnn/_madvn.py`; the upstream MIT license is recorded in `LICENSE_THIRD_PARTY`.
+
 We wrap the vendored class in our own `CTRNNAgent` class (`src/ctrnn/agent.py`), which adds:
 
 - A genotype-to-phenotype mapping (see §2.4).
