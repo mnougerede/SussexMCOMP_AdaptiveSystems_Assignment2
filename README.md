@@ -15,7 +15,48 @@ This project implements a Beer-style ray-sensor agent in pure Python, evolves CT
 
 ## Setup
 
-Python environment managed with `uv`. Standard scientific Python only — `numpy`, `scipy`, `matplotlib`, `pandas`, `tqdm`. No third-party simulator or CTRNN library.
+Python environment managed with `uv`. Standard scientific Python only — `numpy`, `matplotlib`, `tqdm`. No third-party simulator or CTRNN library.
+
+```bash
+uv sync                  # create .venv and install dependencies
+uv run pytest            # run all tests
+PYTHONPATH=src uv run python -m experiments.evolve   # run a script directly
+```
+
+## Running an experiment
+
+```bash
+PYTHONPATH=src uv run python -m experiments.evolve
+```
+All direct script invocations require `\PYTHONPATH=src`. This is set automatically when running via pytest.
+This runs a 20-generation smoke test and writes output to `results/data/test_run/`.
+
+**Files created per run:**
+
+| Path | Contents |
+|---|---|
+| `<output_dir>/config.json` | Full `RunConfig` snapshot including git commit |
+| `<output_dir>/checkpoint.npz` | Latest population, fitnesses, elapsed time |
+| `<output_dir>/checkpoint.rng.json` | NumPy Generator state (RNG sidecar) |
+| `<output_dir>/history/gen_NNNN.npz` | Per-generation fitnesses and summary stats |
+| `<output_dir>/best_per_gen/gen_NNNN.npz` | Best genotype and fitness each generation |
+| `results/data/manifest.json` | Run registry with status and progress |
+
+**Resuming a run:** call `run_experiment` again with the same `output_dir` and a
+higher `n_gens`. The runner detects the checkpoint, restores the RNG state exactly,
+and continues from where it left off. The history from a resumed run is element-wise
+identical to an uninterrupted run with the same seed.
+
+**Inspecting the manifest:**
+
+```python
+from experiments.io import load_manifest
+entries = load_manifest("results/data/manifest.json")
+for e in entries:
+    print(e["run_id"], e["status"], e["current_gen"])
+```
+
+See `src/experiments/STATUS.md` for what is built and what remains.
 
 See `plan/todo.md` for current state and next steps.
 
