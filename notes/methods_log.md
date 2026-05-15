@@ -87,6 +87,8 @@ What the implementation does (relevant to our methods, described as if our own p
 
 The upstream source was vendored from commit `bd1b62150ab1af6d24ade69ece999e39f1f188e7` of `madvn/CTRNN` on 2026-05-15. The README 2-neuron sinusoidal oscillator example runs unchanged under numpy 2.2.4 — no patches were required. The vendored file is `src/ctrnn/_madvn.py`; the upstream MIT license is recorded in `LICENSE_THIRD_PARTY`.
 
+The `CTRNNAgent` wrapper (`src/ctrnn/agent.py`) has been implemented with the sensor-neurons-first indexing convention (nodes 0–2 are sensor neurons, nodes 3–4 are motor neurons) enforced as a tested invariant.
+
 We wrap the vendored class in our own `CTRNNAgent` class (`src/ctrnn/agent.py`), which adds:
 
 - A genotype-to-phenotype mapping (see §2.4).
