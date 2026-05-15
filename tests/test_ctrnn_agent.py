@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-from scipy.sparse import csr_matrix
 
 from ctrnn.agent import CTRNNAgent
 from ctrnn.config import CTRNNConfig
@@ -12,7 +11,7 @@ def make_agent():
 
 def null_network(agent):
     """Zero weights, zero biases, unit taus — isolates state dynamics."""
-    agent.weights = csr_matrix(np.zeros((agent.config.n_nodes, agent.config.n_nodes)))
+    agent.weights = np.zeros((agent.config.n_nodes, agent.config.n_nodes))
     agent.biases = np.zeros(agent.config.n_nodes)
     agent.taus = np.ones(agent.config.n_nodes)
 
@@ -68,7 +67,8 @@ def test_motor_outputs_slice():
 
 
 def test_reset():
-    """After reset(), y is exactly zero and z is exactly 0.5 (sigmoid(0)), regardless of prior state."""
+    """After reset(), y is exactly zero and z equals sigmoid(biases). With the
+    default-constructed agent's zero biases, this reduces to z = 0.5."""
     agent = make_agent()
     I = np.ones(5)
     for _ in range(10):
@@ -78,3 +78,10 @@ def test_reset():
 
     np.testing.assert_allclose(agent.y, np.zeros(5), atol=1e-9)
     np.testing.assert_allclose(agent.z, np.full(5, 0.5), atol=1e-9)
+
+
+def test_weights_is_dense_ndarray():
+    """agent.weights must be a plain numpy ndarray, not a scipy sparse matrix.
+    HP writes individual entries and GA writes whole matrices; both require dense."""
+    agent = make_agent()
+    assert isinstance(agent.weights, np.ndarray)

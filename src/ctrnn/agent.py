@@ -12,6 +12,10 @@ class CTRNNAgent:
         self.config = config
         self._net = CTRNN(size=config.n_nodes, step_size=config.dt)
         self._net.gains = np.ones(config.n_nodes)
+        # PATCH: upstream initialises weights as scipy.sparse.csr_matrix; convert
+        # to dense ndarray so HP (per-entry writes) and GA (whole-matrix writes)
+        # work with plain numpy arrays throughout.
+        self._net.weights = self._net.weights.toarray()
 
     # --- simulation -------------------------------------------------------
 
@@ -26,12 +30,15 @@ class CTRNNAgent:
     # --- parameter properties ---------------------------------------------
 
     @property
-    def weights(self):
-        return self._net.weights
+    def weights(self) -> np.ndarray:
+        # PATCH: guard in case _net.weights is ever set back to sparse externally.
+        w = self._net.weights
+        return w.toarray() if hasattr(w, "toarray") else np.asarray(w)
 
     @weights.setter
-    def weights(self, value):
-        self._net.weights = value
+    def weights(self, value) -> None:
+        # PATCH: enforce dense storage; HP and GA both expect a plain ndarray.
+        self._net.weights = np.asarray(value)
 
     @property
     def biases(self):
