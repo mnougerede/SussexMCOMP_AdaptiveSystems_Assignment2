@@ -67,7 +67,7 @@ $$
 
 ### 2.4 Parameter ranges
 
-The genotype encodes $N^2 + 2N = 35$ real-valued alleles, each in $[-1, 1]$, mapped linearly to the phenotypic ranges (Williams 2006, §7.4.1.1):
+The genotype encodes $N^2 + 2N = 35$ real-valued alleles, each in $[-1, 1]$, mapped linearly to the phenotypic ranges (Williams 2006, §7.4.1.1); the mapping is implemented in `src/ctrnn/genotype.py` with layout weights (row-major, positions 0–24), biases (positions 25–29), taus (positions 30–34) fixed as a tested invariant from Pass 1c.
 
 | Parameter | Symbol | Phenotypic range |
 |---|---|---|
