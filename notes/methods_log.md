@@ -67,7 +67,7 @@ $$
 
 ### 2.4 Parameter ranges
 
-The genotype encodes $N^2 + 2N = 35$ real-valued alleles, each in $[-1, 1]$, mapped linearly to the phenotypic ranges (Williams 2006, §7.4.1.1):
+The genotype encodes $N^2 + 2N = 35$ real-valued alleles, each in $[-1, 1]$, mapped linearly to the phenotypic ranges (Williams 2006, §7.4.1.1); the mapping is implemented in `src/ctrnn/genotype.py` with layout weights (row-major, positions 0–24), biases (positions 25–29), taus (positions 30–34) fixed as a tested invariant from Pass 1c.
 
 | Parameter | Symbol | Phenotypic range |
 |---|---|---|
@@ -77,19 +77,9 @@ The genotype encodes $N^2 + 2N = 35$ real-valued alleles, each in $[-1, 1]$, map
 
 ### 2.5 Implementation: vendored from `madvn/CTRNN`
 
-We use the CTRNN implementation of Candadai (2020), available at `https://github.com/madvn/CTRNN` and on the module's approved software list. The implementation is small and pure-Python; we vendor its source into our repository under `src/ctrnn/_madvn.py` to remove dependency drift and to make it directly readable as part of our submitted code. The vendored copy is licensed under MIT (see `LICENSE_THIRD_PARTY`); no modifications to the integration logic have been made.
+The upstream source was vendored from commit `bd1b62150ab1af6d24ade69ece999e39f1f188e7` of `madvn/CTRNN` on 2026-05-15. The README 2-neuron sinusoidal oscillator example runs unchanged under numpy 2.2.4 — no patches were required. The vendored file is `src/ctrnn/_madvn.py`; the upstream MIT license is recorded in `LICENSE_THIRD_PARTY`.
 
-What the implementation does (relevant to our methods, described as if our own per the marking criteria):
-
-- It stores the network state as numpy arrays for $y$, $z$, $b$, $\tau_y$, and the weight matrix $W$.
-- Each call to its `euler_step(I)` method applies eq. (3) above to all nodes simultaneously, then computes eq. (2) to update $z$.
-- It exposes $W$, $b$, $\tau_y$, $y$, $z$ as mutable attributes, which our HP module reads and writes between Euler steps.
-
-We wrap the vendored class in our own `CTRNNAgent` class (`src/ctrnn/agent.py`), which adds:
-
-- A genotype-to-phenotype mapping (see §2.4).
-- A clear sensor-neuron and motor-neuron indexing convention (nodes 0–2 are sensor neurons receiving non-zero entries of $I$; nodes 3–4 are motor neurons whose firing rates drive the agent body, eq. in §5).
-- A method to reset state at the start of each trial.
+The wrapper class `CTRNNAgent` (`src/ctrnn/agent.py`) constructs from `CTRNNConfig` and establishes the sensor-neurons-first indexing convention (nodes 0–2 are sensor neurons receiving non-zero entries of $I$; nodes 3–4 are motor neurons whose firing rates drive the agent body), enforced as a tested invariant. It exposes $W$, $b$, $\tau_y$, $y$, $z$ as mutable attributes — with $W$ stored as a dense `np.ndarray` — for the HP and GA modules to read and write directly, and provides a `reset()` method that zeros all states at the start of each trial.
 
 ---
 
