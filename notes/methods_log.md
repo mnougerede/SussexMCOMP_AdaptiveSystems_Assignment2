@@ -153,49 +153,35 @@ In conditions where HP runs before a fitness trial (conditions 2 and 4 in §9), 
 
 ## 4. Sensor model
 
-`[TBD: Pass — ray sensors]`
+Three upward-pointing rays are mounted on the agent, arranged in a fan of total angular span $\pi/6$ rad centred on vertical. The ray angles from vertical are $-\pi/12$, $0$, and $+\pi/12$ for the left, centre, and right sensors respectively. For each ray, the distance $D$ to the nearest intersection with a falling shape (treated as a circle) is computed using the standard ray-circle intersection formula. The perpendicular distance $d_\perp$ from the shape centre to the ray line is computed, and an intersection exists when $\Delta = r^2 - d_\perp^2 \geq 0$; the nearest positive intersection distance is $D = t_{\text{proj}} - \sqrt{\Delta}$. If no intersection exists, or $D > D_{\max} = 100$, the sensor returns zero. Otherwise the signal is (Williams 2006, eq. 7.1):
 
-Outline:
-- Three rays in upward-facing fan, total angular span $\pi/6$ rad, mounted on the agent's periphery.
-- Signal $S = S_{max}(D_{max} - D)/D_{max}$ where $D$ is distance to intersected surface, with $S_{max} = 5$ and $D_{max} = 100$ (Williams 2006, eq. 7.1).
-- Ray-circle intersection geometry for ball-catching.
-- Sensor signals feed CTRNN nodes 0–2 as the non-zero entries of $I$.
+$$S_i = S_{\max} \frac{D_{\max} - D}{D_{\max}} \qquad (8)$$
+
+with $S_{\max} = 5$. The three sensor signals $S_0, S_1, S_2$ are injected as the external input to CTRNN nodes 0, 1, 2 respectively (i.e. $I_i = S_i$ for $i \in \{0,1,2\}$; $I_i = 0$ for $i \in \{3,4\}$).
 
 ---
 
 ## 5. Agent body and motor model
 
-`[TBD: Pass — agent body]`
+The agent is a circle of radius 5, constrained to horizontal motion at a fixed vertical position. Its horizontal position $x$ evolves according to:
 
-Outline:
-- Circular body of radius 5, constrained to horizontal motion.
-- Position update: $\tau_x \dot{x} = z_{\text{right}} - z_{\text{left}}$, $\tau_x = 0.2$.
-- $z_{\text{right}}, z_{\text{left}}$ are the firing rates of CTRNN nodes 3 and 4 respectively.
+$$\tau_x \dot{x} = z_{\text{right}} - z_{\text{left}} \qquad (9)$$
+
+where $z_{\text{right}}$ and $z_{\text{left}}$ are the firing rates of CTRNN nodes 4 and 3 respectively, and $\tau_x = 0.2$. Integrated with Euler's method at $\Delta t = 0.2$: $x(t + \Delta t) = x(t) + (z_{\text{right}} - z_{\text{left}})$. The agent position is unbounded horizontally; there are no walls.
 
 ---
 
 ## 6. Environment / falling shapes
 
-`[TBD: Pass — environment]`
-
-Outline:
-- Circles of radius 10 dropped from $y = 100$ above the agent.
-- Horizontal offset uniformly drawn from 10 evenly-spaced positions in $[x_{\text{agent}} - 25, x_{\text{agent}} + 25]$.
-- Horizontal velocity uniform on $[-0.3, 0.3]$; vertical velocity uniform on $[-0.5, -0.2]$.
-- Shape disappears when its lowest point passes the top of the agent.
-- 20 shapes per trial.
+Each trial presents 20 falling shapes sequentially. Each shape is a circle of radius 10, spawned at $y = 100$ above the agent's fixed vertical position with a horizontal offset drawn uniformly from $[-25, 25]$ relative to the agent's current position. Horizontal velocity $v_x$ is drawn uniformly from $[-0.3, 0.3]$ and vertical velocity $v_y$ from $[-0.5, -0.2]$. Shapes fall under constant velocity (no acceleration). A shape is considered to have passed when its lowest point ($y - r$) drops below the top of the agent ($0 + r_{\text{agent}} = 5$), at which point the next shape is spawned. The random state for shape generation is seeded per trial and recorded in the `TrialRecord` for exact reproducibility.
 
 ---
 
 ## 7. Fitness function
 
-`[TBD: Pass — fitness; revisit Williams eq. 7.3 carefully]`
+`[TBD: Pass — fitness function; implement after re-reading Williams eq. 7.3]`
 
-Outline (combined displacement-reduction + final-distance score):
-- Williams 2006 eq. 7.3 averaged across $N_{\text{trials}} = 10$ trials per evaluation, 20 shapes per trial.
-- For each shape $k$: a displacement-reduction term measuring how much horizontal distance to the shape was reduced over the falling period, plus a final-distance term measuring proximity at the moment the shape's lowest point reaches the agent.
-- Both terms normalised; total fitness is the average across trials.
-- **Need to re-read Williams 7.3 carefully before implementing.** Earlier drafts described only the final-distance component; the full form has both.
+Key constraint: Williams eq. 7.3 is a combined score with a displacement-reduction term and a final-distance term. Both components must be included. Do not implement from memory — re-read §7.4.1.2 of the thesis before writing any code.
 
 ---
 
