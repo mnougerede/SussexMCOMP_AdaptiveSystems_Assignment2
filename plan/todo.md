@@ -86,38 +86,33 @@ Two other assignments running in parallel. This is the live to-do list — re-ch
 
 ---
 
-## Phase 4 — Homeostatic plasticity (NEXT)
+## Phase 4 — Homeostatic plasticity (done)
 
-Settle these in chat before writing prompts:
+- [x] HP integration order confirmed: sensor → `agent.step(I)` → compute $\rho$ from new $z$ → bias update → weight update
+- [x] State persistence confirmed: weights, biases, and neural states all reset to genotype values at start of each trial
+- [x] Frozen-HP semantics confirmed: `enabled=False` is a no-op; does not reset parameters
+- [x] **HP module** — `src/plasticity/hp.py`, `HP` class, 9/9 tests passing
+- [x] **Substrate-level sanity check** — `scripts/substrate_check.py`, figure at `figs/substrate_check.pdf`; 86.1% → 47.7% outside $[H_L, H_U]$ during HP; 53.9% after HP off
 
-- [ ] **HP integration order within a step.** When HP is active during a trial: sensor → `agent.step(I)` → new firing rates → bias update via $\tau_b \dot b = \rho$ → weight update via $\tau_w \dot w = \rho|w|$. Confirm against Williams §7.4.1.
-- [ ] **State persistence across trial boundaries.** Within one fitness evaluation (10 trials), HP-shifted weights and biases reset to genotype values between trials. Confirm: each trial in an evaluation runs the developmental phase from the genotype-encoded values, fresh.
-- [ ] **Frozen-HP semantics.** "Frozen" means $\dot w = \dot b = 0$, not "reset to genotype values". HP class needs a clean enable/disable.
-
-Then:
-
-- [ ] **HP module pass** — `src/plasticity/hp.py` with `HP` class operating on a `CTRNNAgent`. Methods: `step(agent)` reads `agent.z`, computes $\rho$ per neuron, applies eq. 5 and eq. 6 via Euler integration with $\Delta t = 0.2$. Disable/enable via flag. Tests: $z = 0.1 \Rightarrow \rho > 0, \Delta b > 0, \Delta |w| > 0$; $z = 0.5 \Rightarrow \rho = 0$; $z = 0.9 \Rightarrow$ symmetric to $z = 0.1$; boundary values $z = H_L, H_U$ give $\rho = 0$; inhibitory and excitatory weights both shrink under $\rho < 0$.
-- [ ] **Substrate-level sanity check** — standalone script `scripts/substrate_check.py` generating 100 random 5-node CTRNNs, recording firing-rate distributions before and after 6000 HP steps with $I = 0$, saving a histogram figure to `figs/substrate_check.pdf`. **This figure goes in the report.**
-
-**Gate:** HP demonstrably moves neurons out of saturation in random networks; figure ready for inclusion in results.
+**Status:** 38/38 tests passing (29 from Phase 3 + 9 new).
 
 ---
 
-## Phase 5 — Simulator body (sensors, agent, shapes, environment)
+## Phase 5 — Simulator body (done)
 
-Order: **shapes → ray sensors → agent body → trial runner → visualisation.**
+- [x] **Shapes** — `src/environment/shapes.py`, 6/6 tests passing
+- [x] **Ray sensors** — `src/agent/sensors.py`, 4/4 tests passing
+- [x] **Agent body** — `src/agent/body.py`, 4/4 tests passing
+- [x] **Trial runner** — `src/environment/trial.py` + `TrialRecord` dataclass, 6/6 tests passing; `CTRNNAgent` extended with `genotype` attribute and `load_genotype()` method
+- [ ] **Visualisation pass** — static trajectory plot (agent x, shape (x,y) over time) plus neural-state subplots *(deferred — will do alongside Phase 8 analyses)*
 
-- [ ] **Shapes pass.** `src/environment/shapes.py`. Circles only (radius 10). Drop from height 100, horizontal offset and velocity per Williams Ch. 7. Tests: spawn distribution, motion update, exit-when-passed.
-- [ ] **Ray sensors pass.** `src/agent/sensors.py`. Three rays, $\pi/6$ fan, upward-facing. $S = S_{\max}(D_{\max} - D)/D_{\max}$, $S_{\max} = 5$, $D_{\max} = 100$. Ray-circle intersection only. Tests: known geometry — ray directly at a circle returns expected $S$; ray missing returns $S = 0$.
-- [ ] **Agent body pass.** `src/agent/body.py`. Circular, radius 5. $\tau_x \dot x = z_R - z_L$, $\tau_x = 0.2$. Tests: zero motor differential → zero velocity; equal-and-opposite → expected steady-state velocity.
-- [ ] **Trial runner pass.** `src/environment/trial.py`. Sequential drop of $N$ shapes per trial; per-timestep recording of agent position, neural state, shape position; produces a "trial record" object the fitness function consumes. Tests: deterministic with fixed seed; correct number of shapes; recorded array shapes match expected.
-- [ ] **Visualisation pass.** Static trajectory plot (agent x, shape (x, y) over time) plus neural-state subplots.
+**Status:** 58/58 tests passing across all phases to date.
 
-**Gate:** can construct a hand-coded controller, drop shapes, watch the agent move sensibly.
+**Gate:** ✓ trial runner deterministic with fixed seed; correct shape count; HP modes all verified.
 
 ---
 
-## Phase 6 — Genetic algorithm and fitness function
+## Phase 6 — Genetic algorithm and fitness function (NEXT)
 
 Settle in chat before writing prompts:
 
