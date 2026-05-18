@@ -28,7 +28,8 @@ I_zero = np.zeros(N_NODES)
 
 # Each network contributes N_NODES firing-rate samples per recorded timestep.
 before_samples = np.empty((N_NETS, RECORD_STEPS, N_NODES))
-after_samples = np.empty((N_NETS, RECORD_STEPS, N_NODES))
+during_samples = np.empty((N_NETS, RECORD_STEPS, N_NODES))
+after_samples  = np.empty((N_NETS, RECORD_STEPS, N_NODES))
 
 for net in range(N_NETS):
     agent = CTRNNAgent(config)
@@ -42,24 +43,31 @@ for net in range(N_NETS):
         agent.step(I_zero)
         before_samples[net, t] = agent.z
 
-    # --- HP training ---
+    # --- HP training: burn-in then capture final RECORD_STEPS steps ---
     agent.reset()
-    for t in range(HP_STEPS):
+    for t in range(HP_STEPS - RECORD_STEPS):
         agent.step(I_zero)
         hp.step(agent)
+    for t in range(RECORD_STEPS):
+        agent.step(I_zero)
+        hp.step(agent)
+        during_samples[net, t] = agent.z
 
-    # --- record after HP (no reset: continue from trained state) ---
+    # --- record after HP (continue from trained state, no reset) ---
     for t in range(RECORD_STEPS):
         agent.step(I_zero)
         after_samples[net, t] = agent.z
 
 before_flat = before_samples.ravel()
-after_flat = after_samples.ravel()
+during_flat = during_samples.ravel()
+after_flat  = after_samples.ravel()
 
-frac_before = np.mean((before_flat < H_L) | (before_flat > H_U))
-frac_after = np.mean((after_flat < H_L) | (after_flat > H_U))
-print(f"Fraction outside [{H_L}, {H_U}] before HP: {frac_before:.4f}")
-print(f"Fraction outside [{H_L}, {H_U}] after  HP: {frac_after:.4f}")
+def frac_outside(arr):
+    return np.mean((arr < H_L) | (arr > H_U))
+
+print(f"Fraction outside [{H_L}, {H_U}] before HP:                    {frac_outside(before_flat):.4f}")
+print(f"Fraction outside [{H_L}, {H_U}] during HP (final {RECORD_STEPS} steps): {frac_outside(during_flat):.4f}")
+print(f"Fraction outside [{H_L}, {H_U}] after  HP:                    {frac_outside(after_flat):.4f}")
 
 # --- figure ---
 figs_dir = os.path.join(os.path.dirname(__file__), "..", "figs")
@@ -67,8 +75,9 @@ os.makedirs(figs_dir, exist_ok=True)
 
 bins = np.linspace(0, 1, 51)
 fig, ax = plt.subplots(figsize=(7, 4))
-ax.hist(before_flat, bins=bins, density=True, alpha=0.6, color="silver", label="before HP")
-ax.hist(after_flat, bins=bins, density=True, alpha=0.6, color="steelblue", label="after HP")
+ax.hist(before_flat, bins=bins, density=True, alpha=0.6, color="silver",    label="before HP")
+ax.hist(during_flat, bins=bins, density=True, alpha=0.6, color="darkorange", label=f"during HP (final {RECORD_STEPS} steps)")
+ax.hist(after_flat,  bins=bins, density=True, alpha=0.6, color="steelblue",  label="after HP")
 ax.axvline(H_L, color="black", linestyle="--", linewidth=1.2, label=f"$H_L = {H_L}$")
 ax.axvline(H_U, color="black", linestyle="--", linewidth=1.2, label=f"$H_U = {H_U}$")
 ax.set_xlabel("Firing rate")
