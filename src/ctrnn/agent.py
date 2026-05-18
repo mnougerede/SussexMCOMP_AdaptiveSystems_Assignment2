@@ -10,12 +10,21 @@ class CTRNNAgent:
 
     def __init__(self, config: CTRNNConfig):
         self.config = config
+        self.genotype = None
         self._net = CTRNN(size=config.n_nodes, step_size=config.dt)
         self._net.gains = np.ones(config.n_nodes)
         # PATCH: upstream initialises weights as scipy.sparse.csr_matrix; convert
         # to dense ndarray so HP (per-entry writes) and GA (whole-matrix writes)
         # work with plain numpy arrays throughout.
         self._net.weights = self._net.weights.toarray()
+
+    # --- genotype ---------------------------------------------------------
+
+    def load_genotype(self, genotype: np.ndarray) -> None:
+        self.genotype = genotype
+        # lazy import avoids circular dependency (genotype.py imports CTRNNAgent)
+        from ctrnn.genotype import apply_genotype
+        apply_genotype(genotype, self)
 
     # --- simulation -------------------------------------------------------
 
