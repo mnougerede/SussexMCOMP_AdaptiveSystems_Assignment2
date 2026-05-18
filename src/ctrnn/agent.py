@@ -76,6 +76,23 @@ class CTRNNAgent:
 
     # --- derived read-only ------------------------------------------------
 
+    # Aliases used by the HP module
+    @property
+    def W(self) -> np.ndarray:
+        return self.weights
+
+    @W.setter
+    def W(self, value) -> None:
+        self.weights = value
+
+    @property
+    def b(self) -> np.ndarray:
+        return self.biases
+
+    @b.setter
+    def b(self, value) -> None:
+        self.biases = value
+
     @property
     def motor_outputs(self) -> np.ndarray:
         """Firing rates of motor neurons: z[n_sensors : n_sensors + n_motors]."""
