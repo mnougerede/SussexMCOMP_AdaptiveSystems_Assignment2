@@ -2,21 +2,17 @@
 
 A working document for the methodological choices in the project. Each section states the question, gives the current choice with rationale, and notes anything still open.
 
-This document reflects the Option A decision: own Python simulator, Williams (2006) Chapter 7 ball-catching replication, three analyses as the extension.
+The project: replicate Williams (2006) Chapter 7 ball-catching evolvability experiments, plus three new analyses (behavioural trajectories, per-neuron viable-range diagnostics across evolution, frozen-HP test).
 
 ---
 
-## Simulator: own implementation, not Sandbox
+## CTRNN implementation: vendor `madvn/CTRNN`
 
-**Decision:** Build the simulator from scratch in pure Python.
+**Decision:** Use the `madvn/CTRNN` package (Candadai 2020), vendored as `src/ctrnn/_madvn.py` rather than installed from PyPI. Wrap it in a thin `CTRNNAgent` class that establishes the sensor/motor neuron indexing convention.
 
-**Reasoning:** Williams' Chapter 7 evolvability experiments use ray sensors returning signal inversely proportional to distance to an intersected surface. Sandbox provides light sensors (omnidirectional or directed cones) and bump sensors but no ray or distance sensors — Chris confirms this in the Sandbox demos notes ("there is no arena or wall sensor in Sandbox, as there are no wall objects per se"). The shape discrimination task in particular requires depth profiling of the falling object across the ray fan; light sensors with shadow-casting bodies cannot produce equivalent input.
+**Reasoning:** On the approved software list and used in Chris's own demos. Pure-Python, small, MIT licensed. Vendoring (rather than installing) keeps the source as part of the submission, makes it easy to read alongside the report, and removes dependency drift risk on an unmaintained library. The marking criteria require us to describe its algorithms as if our own; that price is paid by the methods section regardless of whether the implementation is ours or vendored, so the small-but-real numerical-correctness risk of a from-scratch reimplementation is uncompensated. See `notes/methods_log.md` §2.5 for the methods description.
 
-Williams' Chapter 6 photosensitive robot **is** Sandbox-compatible (two light sensors, differential drive) but Williams himself uses it only for qualitative behavioural illustration. He notes that phototaxis does not require internal dynamics, which is precisely why he reserved the quantitative evolvability experiments for the harder ray-sensor tasks. Building on Sandbox's phototaxis would make the project conceptually weaker even if implementationally easier.
-
-The Beer-style agent is small. Beer's whole specification fits on two pages of his 1996 paper, and Williams Chapter 7 sections 7.4.1 and 7.4.2 are similarly compact. The simulator is roughly 500 lines of Python.
-
-**Methodological benefit:** the methods section gets stronger because we own and can describe every component. Chris's Assignment 1 group feedback explicitly emphasised the methods section: "if you can't/won't explain it, you have no business using it."
+**Trade-off explicitly considered:** writing our own CTRNN would have given more "ownership" of the numerical core, but the integration loop, sigmoid, gain handling, and state arrays are exactly the kind of code where small bugs are subtle and expensive to find. Vendoring a tested implementation is the lower-risk, lower-effort choice.
 
 ---
 
@@ -24,9 +20,9 @@ The Beer-style agent is small. Beer's whole specification fits on two pages of h
 
 **Decision:** Implement and run only the ball-catching task.
 
-**Reasoning:** Williams himself reports in Chapter 7 that the discrimination task was very difficult for HP-plastic networks; the conference paper and thesis both note discrimination performance remained poor across most conditions. Including it adds substantial implementation complexity (diamond geometry, two-shape trial generation, the discrimination fitness function) without a clear payoff: even if our results match Williams' patterns there, the patterns are weaker and harder to interpret.
+**Reasoning:** Williams himself reports in Chapter 7 that the discrimination task was very difficult for HP-plastic networks; performance remained poor across most conditions. Including it adds substantial implementation complexity (diamond geometry, two-shape trial generation, the discrimination fitness function) without a clear payoff: even if our results match Williams' patterns there, the patterns are weaker and harder to interpret.
 
-**Mention in discussion:** the choice to use ball-catching only, with a note that discrimination is more demanding and was set aside for time-budget reasons. Frame discrimination as natural future work.
+**Mention in discussion:** the choice to use ball-catching only, with a note that discrimination is more demanding and was set aside for time-budget reasons. Frame discrimination as natural future work, with a prediction: if HP-during-behaviour is HP-dependent (per the frozen-HP test), the dependence should be even stronger on the harder discrimination task.
 
 ---
 
@@ -34,17 +30,17 @@ The Beer-style agent is small. Beer's whole specification fits on two pages of h
 
 **Decision:** 5-node fully connected CTRNN, 3 sensor neurons and 2 motor neurons, **no interneurons**. Each ray sensor feeds a unique node. Motor output is read from the two non-sensor nodes.
 
-**Reasoning:** This is exactly Williams' Chapter 7 specification (page 120 of the thesis). Deviating from it complicates direct comparison with Williams' results.
-
-The absence of interneurons is conceptually striking but it's what Williams used. Mention in methods that this is a minimal architecture and that one could investigate larger networks (which Williams himself does in Chapter 7 Experiment 4).
+**Reasoning:** Williams' Chapter 7 specification (page 120 of the thesis). Deviating from it complicates direct comparison with Williams' results. The absence of interneurons is conceptually striking but it's what Williams used. Mention in methods that this is a minimal architecture and that one could investigate larger networks (which Williams himself does in Chapter 7 Experiment 4).
 
 ---
 
 ## HP target range: Williams Chapter 7 values
 
-**Decision:** $H_L = 0.2$, $H_U = 0.8$ for the evolvability experiments.
+**Decision:** $H_L = 0.2$, $H_U = 0.8$ throughout, including in the substrate-level sanity check.
 
-**Reasoning:** Williams uses $[0.25, 0.75]$ for the substrate-level analyses in Chapter 6 and the conference paper, but **switches to $[0.2, 0.8]$ in Chapter 7** (page 121 of the thesis). The values used should match the chapter being replicated, not the values quoted in lecture slides or the conference-paper extract. This is a small but important detail — flag it in the methods section.
+**Reasoning:** Williams uses $[0.25, 0.75]$ for the substrate-level analyses in Chapter 6 and Williams & Noble (2007), but **switches to $[0.2, 0.8]$ in Chapter 7** (page 121 of the thesis). The values used should match the chapter being replicated, not the values quoted in lecture slides or the conference paper. Using one consistent pair throughout the project (including the sanity check) avoids the awkward case where the sanity check uses different values from the main experiments.
+
+**Mention in methods:** flag this divergence from Chapter 6 / Williams & Noble explicitly.
 
 ---
 
@@ -52,35 +48,97 @@ The absence of interneurons is conceptually striking but it's what Williams used
 
 **Decision:** $\tau_w = 40$, $\tau_b = 20$.
 
-**Reasoning:** Williams reports that both rules give similar results when applied independently. Combined rules are what he uses in the published comparisons, and these timescale values are reported as the canonical choice. Sensitivity to these is mentioned in Williams' Chapter 6 results section but not systematically explored.
+**Reasoning:** Williams reports that both rules give similar results when applied independently. Combined rules are what he uses in the published comparisons, and these timescale values are reported as canonical. Sensitivity to these is mentioned in Williams' Chapter 6 results section but not systematically explored.
 
 ---
 
-## Sensory input during developmental phase
+## Sensory input during developmental phase: zero input
 
-**Decision:** Run the developmental phase with **the agent stationary in the environment receiving real sensor input** from a fixed scene of falling shapes — same shape generation procedure as during fitness trials, but with motors disabled so the agent does not move.
+**Decision:** During the 6000-timestep developmental phase, the network receives zero external input ($I = 0$). HP runs; the network state evolves.
 
-**Reasoning:** Williams' thesis doesn't fully specify the developmental-phase input regime, only that "homeostatic plasticity is applied for a period in each trial prior to fitness assessment" (Chapter 7, page 119). This implies the agent is in the environment but not yet acting — the natural reading is that it receives input but doesn't move. This is also the closest to the biological analogy: HP adapts to the input distribution the network will face.
+**Reasoning:** Williams' thesis does not explicitly specify the input regime during the developmental phase — it says only "updating every network for 6000 timesteps before each trial began" (Chapter 7, §7.5.2). Three readings are defensible:
 
-Note for methods: this choice should be stated clearly. The alternative (zero input, or random input) is a reasonable choice we considered but did not adopt.
+1. **Zero input.** Matches Williams's Chapter 6 substrate-level analyses, where HP is run on networks in isolation.
+2. **Sensory input from a sample scene.** The network "watches" shapes fall without acting.
+3. **Random input.** Approximating the eventual input distribution without committing to specific trials.
+
+We choose (1). The Chapter 6 precedent is the strongest tie-break: Williams himself uses zero-input HP to demonstrate the substrate-level effect, and "pre-conditioning the network" is the operation he's most likely importing here. A 6000-timestep developmental phase is 1200 simulation seconds (at $\Delta t = 0.2$), which is much longer than a typical trial and supports a "settle the network's intrinsic properties" reading rather than a "show it the task" reading.
+
+**Mention in methods:** state this is a documented choice; Williams's thesis is ambiguous and we follow the Chapter 6 precedent.
 
 ---
 
 ## Number of evolutionary runs per condition
 
-**Decision:** 5 runs per condition (Williams used 10), 30 population × 300 generations (Williams used 50 × 500).
+**Decision:** Target Williams's scale: 4 conditions × 10 runs × 500 generations × 50 individuals. Fallback if compute is constrained: 4 × 5 × 300 × 30.
 
-**Reasoning:** Compute budget. Williams' setup is 4 conditions × 10 runs × 500 generations × 50 individuals × ~20 trials per fitness evaluation. We scale down to keep the project runnable in two weeks: 4 × 5 × 300 × 30 × (some trial count). Adequate for qualitative replication; we lose some statistical resolution but the qualitative ordering Williams observed should still be visible.
+**Reasoning:** The persistence infrastructure (atomic checkpointing, manifest, resumption) lets us run experiments overnight or across multiple machines without losing partial work, which makes the full Williams scale potentially achievable. If runtime measurements during the GA baseline check (Phase 6) suggest the full scale would exceed the time budget, we fall back to the scaled-down setting.
 
-**Acknowledge in discussion:** the run count limits the statistical power of any quantitative claims. Headline results need to be robust to this limit.
+**Cost of scale-down (if we use it):** lower statistical resolution on the headline replication figure. Headline qualitative findings need to be robust to this; framed as a limitation in the discussion.
 
 ---
 
-## Performance metric: Williams' ball-catching fitness
+## Performance metric: Williams' ball-catching fitness (eq. 7.3)
 
-**Decision:** Use Williams' fitness function exactly: $\sum_i (1 - d_i / d_{max})$ over trials, where $d_i$ is the horizontal distance between agent and shape centres when their leading edges meet, normalised to $[0, 1]$. Williams' thesis equation 7.3 gives the precise form.
+**Decision:** Use Williams' fitness function from eq. 7.3, which combines (i) the reduction in horizontal displacement between agent and shape during the trial and (ii) the final horizontal distance at the moment of catch, averaged across trials in an evaluation and normalised.
 
-**Reasoning:** Direct comparability with Williams' published curves. Any change to the fitness function obscures the replication.
+**Reasoning:** Direct comparability with Williams' published curves. Any change to the fitness function obscures the replication. The methods section will describe the exact form (see `notes/methods_log.md` §7, to be written during the fitness pass).
+
+**Note on previous documentation:** earlier drafts of this document and the methods log described only the second component (final distance); this was incomplete. The combined form is the correct one to implement.
+
+---
+
+## Genetic algorithm: tournament selection with elitism
+
+**Decision:** Tournament selection (K = 3) with elitism of the single best individual. Asexual reproduction; Gaussian mutation only, no crossover. Real-valued genotype of length 35 in $[-1, 1]$, mutation with reflection at boundaries.
+
+**Reasoning:** Williams uses fitness-proportional roulette wheel selection with elitism of the top 5. Chris's feedback on the proposal flagged this combination as "a direct route to premature convergence" — fitness-proportional selection concentrates reproduction on the early lead, and elitism guarantees that lead survives, collapsing diversity. Williams's task is soft enough that this didn't break his result, but using the same GA risks (a) reproducing a known anti-pattern in our submission, (b) confounding any genuine HP-induced search difficulty with GA-induced convergence problems.
+
+Tournament selection is the EC textbook default for a reason: K controls selection pressure smoothly, the method is invariant to fitness scaling, and it does not concentrate reproduction on a single dominant individual. K = 3 is conventional and gives moderate selection pressure. Single-individual elitism prevents fitness regressions between generations without disabling the GA's ability to explore.
+
+**Implications for results:**
+
+- We are *not* exactly replicating Williams's GA. Our methods section states this and gives the EC-literature justification. The qualitative comparison with Williams becomes "we used a better-conditioned GA and still see qualitative effects X and Y", which strengthens rather than weakens the replication of the underlying biology.
+- If our qualitative ordering differs from Williams's, this is itself an interesting result and should be reported. We do not need to match his fitness curves quantitatively to test the project's central claims (which are about HP dynamics, not GA dynamics).
+
+**Trade-off explicitly considered:** running both GAs in parallel would let us isolate GA effects from HP effects. We do not have the time or report space for this. Flag as future work.
+
+**GA scale:** unchanged by this decision. Population size is driven by genotype dimensionality and fitness noise, neither of which depends on the selection method.
+
+---
+
+## Baldwin effect: the framing for the introduction and discussion
+
+**Decision:** Use the Baldwin effect as the primary theoretical frame for the project, with the Stolting et al. hypothesis as a complementary mechanistic story. Introduction cites Baldwin (1896), Hinton & Nowlan (1987), and Mayley (1996). Discussion reframes the frozen-HP test as a test of genetic assimilation.
+
+**Reasoning:** The Baldwin effect — that lifetime adaptation can guide evolution, and that lifetime-acquired traits can become genetically assimilated over generations — is the canonical EC frame for situations like ours. Chris's feedback flagged that the Stolting paper "often crops up alongside the Baldwin effect" and was surprised the connection wasn't made. The connection is direct:
+
+- **HP-during-development (condition 2)** is exactly the Hinton-&-Nowlan setup: lifetime learning before fitness evaluation. The Baldwin effect predicts this should help in early generations (because HP smooths the genotype-to-phenotype mapping) but the benefit should diminish as the population finds genotypes that don't need HP correction (genetic assimilation).
+
+- **HP-during-behaviour (condition 3)** is the harder case where lifetime adaptation and fitness measurement are interleaved. The Baldwin effect prediction depends on whether genetic assimilation can happen: if it can, evolved genotypes become HP-independent and frozen-HP evaluations show small fitness drops; if it cannot, the population remains HP-dependent and frozen-HP evaluations show large drops.
+
+- **The frozen-HP test, in this framing, is a direct empirical test of genetic assimilation.** Stolting's hypothesis (HP-during-behaviour evolves limit cycles in the joint state space) is a *specific mechanism* by which assimilation could fail — but the test itself is more general.
+
+**Why this is the right framing:**
+
+1. It places the project in the Sussex evolutionary-robotics tradition (Mayley's DPhil was at Sussex; Williams's thesis is in the same lineage).
+2. It gives the introduction a cleaner motivating question than "Williams reports a result; we test Stolting's explanation."
+3. It makes the discussion more substantive: we can interpret the frozen-HP drop size in terms of degree of assimilation, regardless of the specific mechanism.
+4. Chris explicitly flagged this, so we know the marker will be reading for it.
+
+**Methods are unchanged.** The Baldwin reframing is theoretical, not experimental. The same data answers both questions.
+
+---
+
+## Search dynamics, not "moving fitness landscape"
+
+**Decision:** Drop the "moving fitness landscape" wording. Replace with "HP introduces an indirect genotype-phenotype mapping, which changes search dynamics across a fixed landscape."
+
+**Reasoning:** The fitness landscape is the genotype → fitness mapping, which is deterministic for a given seed regardless of plasticity. What HP changes is the *phenotype that gets evaluated* — the genotype encodes initial weights and biases, and HP modifies them before fitness is measured. This is a feature of the encoding (indirect, via HP), not of the landscape (which is unchanged in shape).
+
+The wording in the proposal was sloppy. Chris flagged it; the corrected framing is the one to carry forward into the report.
+
+**Implication:** in analyses and discussion, talk about "how HP shapes the search trajectory" or "how HP changes the effective genotype-phenotype mapping", not "moving landscape" or "fitness landscape that changes during evaluation".
 
 ---
 
@@ -89,10 +147,11 @@ Note for methods: this choice should be stated clearly. The alternative (zero in
 Spelled out so we don't drift back into them:
 
 - **No discrimination task** in the main experiments
-- **No duration sweep** (Williams' Experiment 2 already addresses this with a single 6000-timestep value, and the literature has moved on)
-- **No phototaxis or moving-light task** (Sandbox-driven idea that didn't survive the move to own-simulator)
+- **No duration sweep** of the developmental phase (Williams' Experiment 2 already covers this with 6000 timesteps)
+- **No phototaxis or moving-light task** (Sandbox-driven idea that didn't survive the move to a custom simulator)
 - **No $\rho$ functional-form variations** in the primary experiments
 - **No Hebbian plasticity comparison** (interesting future work; out of scope)
+- **No GA comparison** between Williams's GA and ours, despite this being a natural experiment — out of scope on time and report length
 
 ---
 
@@ -110,11 +169,18 @@ For each condition, at each generation, take the best individual; run a represen
 
 **Why this matters:** Williams' substrate-level claims (HP keeps neurons in the viable range) and his evolvability claims (HP-during-development helps) have not been directly connected to each other in the literature. This analysis bridges them: it asks whether the substrate-level effect persists through evolution, in each condition.
 
-### Frozen-HP test (the Stolting et al. test)
+Connection to Baldwin: in conditions with HP, this metric tracks whether evolution comes to rely on HP-corrected firing rates (high in-range fraction maintained by HP) or evolves genotypes that produce in-range rates innately (high in-range fraction maintained without HP). The trajectory of this metric across generations is a direct view on the assimilation question.
 
-For each evolved HP-during-behaviour individual, freeze the parameters at the end of evolution and re-evaluate fitness. Compare with the HP-development-only group (where HP is already frozen for trials) as a control for measurement noise.
+### Frozen-HP test (the Stolting et al. test, reframed as an assimilation test)
 
-**Why this matters:** Stolting et al. (2023) found that some CTRNN oscillations in CPG tasks are HP-enabled — they collapse when HP is frozen. They speculated at the end of their paper that this might explain Williams' poor HP-during-behaviour results, but they did not test the claim on Williams' agent setup. We do. If HP-during-behaviour individuals show large fitness drops on freezing, the speculation is supported; if not, the poor HP-during-behaviour result must have another explanation.
+For each evolved HP-during-behaviour individual, freeze the plasticity parameters at the end of evolution and re-evaluate fitness. Measure the fitness drop relative to the same individual with HP active.
+
+**Why this matters:**
+
+- *Stolting framing:* Stolting et al. (2023) speculated that HP-during-behaviour evolves limit cycles in the joint network-and-parameter state space, which collapse when HP is frozen. They did not test this on Williams's agent. We do.
+- *Baldwin framing:* a large fitness drop on freezing indicates the population has *not* genetically assimilated the adaptive behaviour — it remains HP-dependent. A small drop indicates assimilation has occurred. Either result is a substantive finding.
+
+**Control for the comparison:** HP-during-development individuals already had HP frozen during their fitness trials, so they are not a valid noise control. Instead, re-evaluate each HP-during-behaviour individual multiple times with different shape sequences (different trial seeds) to estimate within-individual fitness variance. The freezing effect is significant if it exceeds this baseline noise.
 
 This is the project's clearest single scientific question.
 
@@ -122,16 +188,18 @@ This is the project's clearest single scientific question.
 
 ## Compute budget and parallelisation
 
-Each fitness evaluation: 5 neurons × ~1000-2000 timesteps × ~20 shapes per trial. Approximately 0.1-0.5 seconds per evaluation depending on implementation efficiency.
+Each fitness evaluation: 5 neurons × ~1500 timesteps × ~10 trials per evaluation × 20 shapes per trial. Approximately 0.1–0.5 seconds per evaluation depending on implementation efficiency.
 
-Full experiment: 4 conditions × 5 runs × 300 generations × 30 individuals = 180,000 evaluations × 0.3s = ~15 hours single-threaded. Manageable on a laptop overnight, or much faster if parallelised across cores using `multiprocessing` (Williams' fitness function is trivially parallelisable across population members).
+Full Williams-scale experiment: 4 conditions × 10 runs × 500 generations × 50 individuals ≈ $10^6$ evaluations. Single-threaded at 0.3s each is ~80 hours. Tractable across multiple overnight runs with multi-core parallelisation, or on a single machine with `multiprocessing` (Williams' fitness function is trivially parallelisable across population members).
 
-**Plan:** implement single-threaded first; parallelise if it becomes a bottleneck. Save raw data after each run so partial results are usable.
+Scaled-down fallback: 4 × 5 × 300 × 30 = 180,000 evaluations ≈ 15 hours single-threaded.
+
+**Plan:** measure single-threaded timing during the GA baseline check. Decide between Williams-scale and scaled-down based on what the timing shows. Parallelise across cores in either case if it's a clean win.
 
 ---
 
 ## Reproducibility
 
-Each evolutionary run is initialised from a different seed. Seeds are recorded in the run output. Raw per-generation data (best genotype, fitness statistics) saved as compressed numpy arrays. All plots regenerated from saved data, not from live runs.
+Each evolutionary run is initialised from a different seed, recorded in the run's manifest entry. Raw per-generation data (best genotype, fitness statistics) saved as compressed numpy arrays. All plots regenerated from saved data, not from live runs.
 
-This was a hard lesson from Assignment 1: keep the analysis and plotting code separate from the experiment runner so that a failed plot doesn't require a re-run of the experiment.
+This was a hard lesson from Assignment 1: keep the analysis and plotting code separate from the experiment runner so a failed plot doesn't require a re-run of the experiment.

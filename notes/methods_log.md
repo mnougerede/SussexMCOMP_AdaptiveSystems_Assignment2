@@ -7,6 +7,7 @@ Conventions:
 - Williams quotes use the **Chapter 7** values throughout. Where Chapter 6 / conference paper values differ, this is flagged explicitly.
 - Every variable in every equation is defined on the same logical block, even if redundantly.
 - `[TBD: Pass N]` markers indicate content that will be written when that pass is built.
+- Sections marked **(R)** are report-narrative sections (introduction or discussion); sections without are methods proper. The introduction and discussion live in the report file, not here, but their key claims and citations are tracked here so the methods log is a single source of truth for what the report says about each topic.
 
 ---
 
@@ -81,6 +82,8 @@ The upstream source was vendored from commit `bd1b62150ab1af6d24ade69ece999e39f1
 
 The wrapper class `CTRNNAgent` (`src/ctrnn/agent.py`) constructs from `CTRNNConfig` and establishes the sensor-neurons-first indexing convention (nodes 0–2 are sensor neurons receiving non-zero entries of $I$; nodes 3–4 are motor neurons whose firing rates drive the agent body), enforced as a tested invariant. It exposes $W$, $b$, $\tau_y$, $y$, $z$ as mutable attributes — with $W$ stored as a dense `np.ndarray` — for the HP and GA modules to read and write directly, and provides a `reset()` method that zeros all states at the start of each trial.
 
+Note for the report: the upstream class stores weights as a scipy sparse matrix; we convert to a dense numpy array in the wrapper because (a) the network is fully connected so sparsity provides no benefit, and (b) HP performs frequent element-wise updates that are substantially faster on dense storage.
+
 ---
 
 ## 3. Homeostatic plasticity
@@ -140,6 +143,12 @@ Williams Chapter 7 values, used throughout:
 
 Equations (5) and (6) are integrated using Euler's forward method with the same step size $\Delta t = 0.2$ as the CTRNN itself.
 
+### 3.6 Developmental phase
+
+In conditions where HP runs before a fitness trial (conditions 2 and 4 in §9), the network is updated for 6000 timesteps with $I = 0$. HP runs; the network state $y$ evolves. At the end of the 6000 timesteps the modified weights and biases are used for the fitness trial that follows.
+
+**Note on the choice of input.** Williams's thesis does not specify the input regime during the developmental phase. We follow the precedent of his Chapter 6 substrate-level experiments and use zero input. This is a documented choice; the alternative reading (sensory input from a sample of falling shapes) is reasonable but Chapter 6 sets the stronger precedent.
+
 ---
 
 ## 4. Sensor model
@@ -180,26 +189,63 @@ Outline:
 
 ## 7. Fitness function
 
-`[TBD: Pass — fitness]`
+`[TBD: Pass — fitness; revisit Williams eq. 7.3 carefully]`
 
-Outline:
-- Williams 2006 eq. 7.3: $F = \sum_{k=1}^{N_{\text{trials}}} (1 - d_k / d_{\text{max}})$.
-- $d_k$ is the horizontal distance between agent and shape centres at the moment the shape's lowest point reaches the top of the agent.
-- $d_{\text{max}}$ normalises this to $[0, 1]$ (Williams uses the maximum possible $d_k$ given the spawn range).
+Outline (combined displacement-reduction + final-distance score):
+- Williams 2006 eq. 7.3 averaged across $N_{\text{trials}} = 10$ trials per evaluation, 20 shapes per trial.
+- For each shape $k$: a displacement-reduction term measuring how much horizontal distance to the shape was reduced over the falling period, plus a final-distance term measuring proximity at the moment the shape's lowest point reaches the agent.
+- Both terms normalised; total fitness is the average across trials.
+- **Need to re-read Williams 7.3 carefully before implementing.** Earlier drafts described only the final-distance component; the full form has both.
 
 ---
 
 ## 8. Genetic algorithm
 
-`[TBD: GA design discussion + implementation pass]`
+The GA operates over the real-valued genotype defined in §2.4: a vector of length 35 in $[-1, 1]$.
 
-Outline (to be settled before the GA pass):
-- Asexual; mutation only.
-- Population size and generations: Williams uses 50 × 500; we will likely scale to 30 × 300 (decision to be confirmed).
-- Selection: microbial GA or simple truncation-with-elitism (to be decided).
-- Encoding: real-valued vector of length 35, all alleles in $[-1, 1]$.
-- Mutation: Gaussian perturbation with reflection at boundaries (to be confirmed against Williams' specification).
-- Per-run seeding via the seeds recorded in `RunConfig`.
+### 8.1 Selection
+
+**Tournament selection with $K = 3$.** For each offspring slot, three individuals are drawn uniformly at random (with replacement, across the parental population) and the one with the highest fitness is selected to reproduce. This is repeated independently for each offspring.
+
+### 8.2 Elitism
+
+The single best individual from the parental generation is copied unchanged into the next generation. The remaining $N - 1$ offspring are produced by tournament selection followed by mutation.
+
+### 8.3 Mutation
+
+Each allele is mutated independently with probability $p_m$. When mutated, the new value is the old value plus a Gaussian perturbation:
+
+$$
+g_i' \;=\; g_i + \mathcal{N}(0, \sigma_m^2)
+\qquad (7)
+$$
+
+Reflected at the boundaries: if $g_i' > 1$ then $g_i' \leftarrow 2 - g_i'$, and symmetrically if $g_i' < -1$. Mutation parameters $p_m$ and $\sigma_m$ to be set during the GA baseline check (Phase 6) — start with $p_m = 0.1$ and $\sigma_m = 0.1$, adjust based on whether the no-HP baseline achieves Williams's reported performance.
+
+### 8.4 Initialisation
+
+Each allele independently drawn uniformly from $[-1, 1]$.
+
+### 8.5 Population, generations, runs
+
+Target: population 50, generations 500, 10 runs per condition (Williams's scale).
+Fallback if compute is constrained: 30 × 300 × 5 (decision deferred to after the GA baseline check).
+
+### 8.6 Reproducibility
+
+Each run uses a different RNG seed, recorded in the run's manifest entry. The seed initialises the population, the trial-sequence sampler, and the tournament-selection sampler. Resumption restores the RNG state exactly (per the persistence infrastructure tests).
+
+### 8.7 Justification: tournament rather than Williams's roulette + elitism
+
+Williams uses fitness-proportional roulette wheel selection with elitism of the top 5 individuals. Tournament selection is the EC textbook default for several reasons we adopt:
+
+- **Invariance to fitness scaling.** Tournament selection depends only on the ordering of fitnesses within each tournament, not their absolute magnitudes. Fitness-proportional roulette is sensitive to fitness scaling and concentrates reproduction on the early lead when fitness variance is high.
+- **Selection pressure tuning.** $K$ directly controls selection pressure; $K = 3$ gives moderate pressure suitable for continuous optimisation problems.
+- **Robustness to premature convergence.** Roulette + elitism (Williams's combination) is known to cause rapid loss of population diversity, particularly when one individual gains an early fitness lead. Tournament selection avoids this failure mode.
+
+We retain the *idea* of elitism — a single best individual is preserved per generation — to prevent fitness regressions, while avoiding the diversity collapse that elitism + roulette together produce.
+
+**Implication for replication.** Because our GA differs from Williams's, our fitness curves will not match his quantitatively. The headline replication is at the level of *qualitative ordering of conditions*, not at the level of matching specific curves. This is appropriate: the project's central claims are about HP dynamics, not GA dynamics. If our qualitative ordering differs from Williams's, the difference is itself a substantive finding and is treated as such.
 
 ---
 
@@ -208,11 +254,11 @@ Outline (to be settled before the GA pass):
 Following Williams Chapter 7 Experiments 1 and 2:
 
 1. **No HP** — random non-plastic CTRNN; HP off throughout evolution and trials.
-2. **HP during development only** — 6000 timesteps of HP before each fitness trial, then HP frozen for the trial.
+2. **HP during development only** — 6000 timesteps of HP with $I = 0$ before each fitness trial, then HP frozen for the trial.
 3. **HP during behaviour** — HP active throughout every trial; no separate developmental phase.
 4. **HP during development and behaviour** — 6000 timesteps of HP before each trial, then HP continues during the trial.
 
-Williams uses 10 runs per condition; we will use 5 (decision documented in `design_decisions.md`).
+Williams uses 10 runs per condition; we target 10, fall back to 5 if compute requires (decision documented in `notes/design_decisions.md`).
 
 Each evolutionary run is initialised from a different random seed, recorded in the run's manifest entry. Raw per-generation data (best genotype, fitness statistics) are saved to disk per run; all plots are regenerated from saved data, not from live runs.
 
@@ -241,19 +287,56 @@ Outline:
 - Evolve non-plastic CTRNNs on ball-catching for a small number of runs (e.g. 30 × 100).
 - Confirm that fitness curves rise above the random baseline.
 - Confirm that the best-evolved individuals catch most balls in a visual trajectory inspection.
+- Measure single-evaluation runtime; use this to decide between Williams-scale and scaled-down for the main experiments.
+
+---
+
+## 11. (R) Framing for introduction and discussion
+
+This section tracks key claims and citations for the introduction and discussion sections of the report. The prose lives in the report file; this is a stable record of what claims it makes and what it cites for them.
+
+### 11.1 The Baldwin effect frame
+
+**Claim.** This project's central question is best framed via the Baldwin effect: lifetime adaptation (HP) can guide evolution, and lifetime-acquired traits can become genetically assimilated over generations. The four experimental conditions vary the kind and amount of lifetime adaptation; the frozen-HP test directly probes whether genetic assimilation has occurred.
+
+**Key citations.**
+- Baldwin, J. M. (1896). A new factor in evolution. *American Naturalist*, 30(354), 441–451.
+- Hinton, G. E., & Nowlan, S. J. (1987). How learning can guide evolution. *Complex Systems*, 1(3), 495–502. — canonical introduction of the Baldwin effect in evolutionary computation.
+- Mayley, G. (1996). Landscapes, learning costs, and genetic assimilation. *Evolutionary Computation*, 4(3), 213–234. — formal conditions under which genetic assimilation occurs in EC.
+- Turney, P. (1996). Myths and legends of the Baldwin effect. *ICML 1996 Workshop on Evolutionary Computation and Machine Learning*. — useful as a reality check on what the Baldwin effect does and does not predict.
+
+**Where this lives in the report.**
+- *Introduction.* The Baldwin effect frame is introduced after the working definition of adaptivity and before the substrate-level/evolvability tension. The connection to the project: HP-during-development is the Hinton-&-Nowlan setup; HP-during-behaviour adds the complication that lifetime adaptation and fitness measurement are interleaved.
+- *Discussion.* The frozen-HP test result is interpreted in terms of degree of genetic assimilation. Large fitness drop on freezing → assimilation has not occurred, HP-during-behaviour evolution remains plasticity-dependent. Small drop → assimilation has occurred, evolved genotypes encode the solution innately.
+
+### 11.2 Search dynamics, not "moving fitness landscape"
+
+The fitness landscape (the genotype → fitness mapping) is determined by the evaluation procedure and is deterministic for a given seed regardless of plasticity. What HP changes is the *phenotype that gets evaluated*: the genotype encodes initial network parameters, and HP modifies them before fitness is measured. This is a feature of the encoding (indirect, via HP), not of the landscape (whose shape is unchanged).
+
+The proposal used the wrong phrasing ("moving fitness landscape"). The correct phrasing is "HP changes the search dynamics by introducing an indirect genotype-phenotype mapping", or equivalently "HP changes the effective phenotype that the GA selects on".
+
+### 11.3 The Stolting hypothesis as mechanism
+
+Stolting, Beer & Izquierdo (2023) speculated that HP-during-behaviour evolves limit cycles in the joint network-and-parameter state space — dynamics in which both the network state and the HP-modified parameters co-vary in a way that is essential to behaviour. Such dynamics would collapse if HP were frozen. The frozen-HP test in our project bears directly on this: a large fitness drop is consistent with Stolting's mechanism, a small drop is inconsistent with it.
+
+The Baldwin frame and Stolting frame are complementary: Stolting proposes a specific mechanism by which genetic assimilation can fail (HP creates dynamics that cannot be reproduced without it); the Baldwin frame is the more general claim that assimilation either has or has not occurred. The same frozen-HP test answers both.
 
 ---
 
 ## References
 
-`[Compiled at end of project. Key entries already identified:]`
+`[Compiled at end of project. Key entries identified so far:]`
 
+- Ashby, W. R. (1960). *Design for a Brain* (2nd ed.). Chapman & Hall.
+- Baldwin, J. M. (1896). A new factor in evolution. *American Naturalist*, 30(354), 441–451.
 - Beer, R. D. (1995). On the dynamics of small continuous-time recurrent neural networks. *Adaptive Behavior*, 3(4), 469–509.
 - Beer, R. D. (1996). Toward the evolution of dynamical neural networks for minimally cognitive behavior. *SAB '96*.
-- Candadai, M. (2020). CTRNN [software]. https://github.com/madvn/CTRNN
-- Di Paolo, E. (2000). Homeostatic adaptation to inversion of the visual field and other sensorimotor disruptions.
-- Williams, H. P. (2006). *Homeostatic Plasticity in Recurrent Neural Networks: A Computational Study* (PhD thesis, University of Sussex). Chapters 6 and 7.
-- Williams, H., & Noble, J. (2007). Homeostatic plasticity improves signal propagation in continuous-time recurrent neural networks. *BioSystems*, 87(2–3), 252–259.
+- Candadai, M. (2020). *CTRNN: A Python package for the simulation of continuous-time recurrent neural networks* [software]. https://github.com/madvn/CTRNN
+- Di Paolo, E. A. (2000). Homeostatic adaptation to inversion of the visual field and other sensorimotor disruptions.
+- Hinton, G. E., & Nowlan, S. J. (1987). How learning can guide evolution. *Complex Systems*, 1(3), 495–502.
+- Mayley, G. (1996). Landscapes, learning costs, and genetic assimilation. *Evolutionary Computation*, 4(3), 213–234.
 - Stolting, J., Beer, R. D., & Izquierdo, E. J. (2023). Characterizing the role of homeostatic plasticity in central pattern generators.
-- Ashby, W. R. (1960). *Design for a Brain.*
-- Turrigiano, G. G. (1999). Homeostatic plasticity in neuronal networks: the more things change, the more they stay the same. *Trends in Neurosciences*.
+- Turney, P. (1996). Myths and legends of the Baldwin effect. *ICML 1996 Workshop on Evolutionary Computation and Machine Learning*.
+- Turrigiano, G. G. (1999). Homeostatic plasticity in neuronal networks: the more things change, the more they stay the same. *Trends in Neurosciences*, 22(5), 221–227.
+- Williams, H. P. (2006). *Homeostatic Adaptive Networks*. PhD thesis, University of Leeds.
+- Williams, H., & Noble, J. (2007). Homeostatic plasticity improves signal propagation in continuous-time recurrent neural networks. *BioSystems*, 87(2–3), 252–259.
