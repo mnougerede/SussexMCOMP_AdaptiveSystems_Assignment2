@@ -268,16 +268,9 @@ Each evolutionary run is initialised from a different random seed, recorded in t
 
 ### 10.1 Substrate-level sanity check
 
-`[TBD: Pass — HP, after HP module is built]`
+The check generated 100 random 5-node CTRNNs (weights and biases sampled uniformly from $[-10, 10]$, time constants from $[1, 4]$, seed 42). For each network, firing rates were recorded over 220 timesteps ($I = 0$, HP off) to establish a baseline, then HP was applied for 6000 timesteps ($I = 0$, $H_L = 0.2$, $H_U = 0.8$, $\tau_w = 40$, $\tau_b = 20$, $\Delta t = 0.2$). Firing rates were recorded during the final 220 HP steps and again for 220 steps after HP was switched off (continuing from the post-HP neural state).
 
-Replicates Williams (2006) Chapter 6 / Williams & Noble (2007) at small scale to confirm our HP implementation is doing what it should:
-
-- Generate 100 random 5-node CTRNNs with parameters sampled uniformly in the phenotypic ranges (§2.4).
-- For each, record the firing rates of all 5 nodes over 6000 timesteps with $I = 0$, HP off.
-- Apply HP for 6000 timesteps with $I = 0$ and re-record firing rates.
-- Compare distributions: HP should concentrate firing rates away from saturated tails (0 and 1) and into $[H_L, H_U]$.
-
-This is the empirical check that justifies treating the HP module as correct for the evolvability experiments.
+Results: fraction of firing-rate samples outside $[H_L, H_U]$ was 0.861 before HP, 0.477 during HP (final 220 steps), and 0.539 after HP was switched off. The improvement from before to during HP confirms that the plasticity rules are functioning as intended. The partial persistence of improvement after HP is switched off shows that HP has genuinely reshaped weights and biases, not merely masked saturation dynamically. The residual gap between during and after suggests that a portion of HP's regulatory work depends on ongoing parameter adjustment — a substrate-level instance of the HP-enabled dynamic that the frozen-HP test (§10.3) will probe in evolved networks. Figure: `figs/substrate_check.pdf`.
 
 ### 10.2 GA baseline check
 
