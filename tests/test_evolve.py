@@ -6,13 +6,15 @@ import pytest
 
 import experiments.evolve as evolve_module
 from experiments.config import Condition, GAConfig, RunConfig
+from environment.config import EnvConfig
 from experiments.evolve import run_experiment
 from experiments.io import load_history
 
 
 def _minimal_config(output_dir: str, n_gens: int, seed: int = 42) -> RunConfig:
     return RunConfig(
-        ga=GAConfig(pop_size=8, n_gens=n_gens, n_runs=1),
+        ga=GAConfig(pop_size=4, n_gens=n_gens, n_runs=1, n_elite=1),
+        env=EnvConfig(n_trials=1, n_shapes=3),
         condition=Condition.HP_OFF,
         seed=seed,
         output_dir=output_dir,
@@ -40,8 +42,9 @@ def test_resumption_matches_uninterrupted(tmp_path):
     partial_history = load_history(partial_dir)
     uninterrupted_history = load_history(uninterrupted_dir)
 
-    assert partial_history["fitnesses"].shape == (2 * N, 8)
-    assert uninterrupted_history["fitnesses"].shape == (2 * N, 8)
+    pop_size = _minimal_config(partial_dir, n_gens=1).ga.pop_size
+    assert partial_history["fitnesses"].shape == (2 * N, pop_size)
+    assert uninterrupted_history["fitnesses"].shape == (2 * N, pop_size)
 
     np.testing.assert_array_equal(
         partial_history["fitnesses"],

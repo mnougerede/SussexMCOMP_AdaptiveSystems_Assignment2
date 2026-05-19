@@ -27,7 +27,7 @@ def test_run_config_round_trip():
             vy_high=-0.1,
         ),
         agent=AgentConfig(n_rays=5, ray_spread=math.pi / 4, s_max=8.0, d_max=150.0, tau_x=0.1),
-        ga=GAConfig(pop_size=20, n_gens=200, n_runs=3, n_elite=3, mutation_rate=0.05, mutation_add_magnitude=0.4),
+        ga=GAConfig(pop_size=20, n_gens=200, n_runs=3, n_elite=3, p_m=0.05, sigma_m=0.4, tournament_k=5),
         condition=Condition.HP_BOTH,
         seed=42,
         output_dir="/tmp/test_results",
