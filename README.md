@@ -6,59 +6,52 @@ This project implements a Beer-style ray-sensor agent in pure Python, evolves CT
 
 ## Project structure
 
-- `notes/` — Reading notes and reference documents
-- `plan/` — Live planning documents (to-do, experiments spec, design decisions)
+- `notes/` — Reading notes, design decisions, methods log
+- `plan/` — Live planning documents (todo, experiments spec, experiment targets)
 - `src/` — Python source code, organised by simulator component
-- `tests/` — Unit tests
-- `results/` — Generated figures and saved experiment data
+- `tests/` — Unit tests (63 passing)
+- `figs/` — Generated figures (gitignored; regenerated from data)
+- `experiments/` — Runtime experiment output: checkpoints, history, manifests (gitignored; backed up to OneDrive)
+- `batches/` — Batch provenance records (versioned)
 - `report/` — LaTeX source and supporting materials
+- `scripts/` — Standalone scripts for experiments, profiling, and status reporting
 
 ## Setup
 
-Python environment managed with `uv`. Standard scientific Python only — `numpy`, `matplotlib`, `tqdm`. No third-party simulator or CTRNN library.
+Python environment managed with `uv`. Dependencies: `numpy`, `scipy`, `matplotlib`, `tqdm`.
 
 ```bash
 uv sync                  # create .venv and install dependencies
-uv run pytest            # run all tests
-PYTHONPATH=src uv run python -m experiments.evolve   # run a script directly
+uv run pytest            # run all tests (63 passing)
 ```
 
 ## Running an experiment
 
+Use `scripts/launch_batch.py` to launch named batches:
+
 ```bash
-PYTHONPATH=src uv run python -m experiments.evolve
+PYTHONPATH=src uv run python scripts/launch_batch.py \
+  --batch pilot_01 --conditions no_hp --n_runs 1 --base_seed 42 --n_workers 4
 ```
-All direct script invocations require `\PYTHONPATH=src`. This is set automatically when running via pytest.
-This runs a 20-generation smoke test and writes output to `results/data/test_run/`.
+
+Check progress at any time:
+
+```bash
+PYTHONPATH=src uv run python scripts/experiment_status.py
+```
 
 **Files created per run:**
 
 | Path | Contents |
 |---|---|
-| `<output_dir>/config.json` | Full `RunConfig` snapshot including git commit |
-| `<output_dir>/checkpoint.npz` | Latest population, fitnesses, elapsed time |
-| `<output_dir>/checkpoint.rng.json` | NumPy Generator state (RNG sidecar) |
-| `<output_dir>/history/gen_NNNN.npz` | Per-generation fitnesses and summary stats |
-| `<output_dir>/best_per_gen/gen_NNNN.npz` | Best genotype and fitness each generation |
-| `results/data/manifest.json` | Run registry with status and progress |
+| `experiments/<batch>/<run>/config.json` | Full `RunConfig` snapshot |
+| `experiments/<batch>/<run>/checkpoint.npz` | Latest population, fitnesses |
+| `experiments/<batch>/<run>/checkpoint.rng.json` | RNG state for exact resumption |
+| `experiments/<batch>/<run>/history/gen_NNNN.npz` | Per-generation fitness stats |
+| `experiments/<batch>/<run>/best_per_gen/gen_NNNN.npz` | Best genotype per generation |
+| `batches/<label>.json` | Batch provenance record (versioned) |
 
-**Resuming a run:** call `run_experiment` again with the same `output_dir` and a
-higher `n_gens`. The runner detects the checkpoint, restores the RNG state exactly,
-and continues from where it left off. The history from a resumed run is element-wise
-identical to an uninterrupted run with the same seed.
-
-**Inspecting the manifest:**
-
-```python
-from experiments.io import load_manifest
-entries = load_manifest("results/data/manifest.json")
-for e in entries:
-    print(e["run_id"], e["status"], e["current_gen"])
-```
-
-See `src/experiments/STATUS.md` for what is built and what remains.
-
-See `plan/todo.md` for current state and next steps.
+**Resuming a run:** call `run_experiment` again with the same `output_dir` and a higher `n_gens`. The runner restores RNG state exactly and continues from the last checkpoint. History from a resumed run is element-wise identical to an uninterrupted run with the same seed.
 
 ## Key references
 
