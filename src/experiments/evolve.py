@@ -1,5 +1,6 @@
 import dataclasses
 import json
+import multiprocessing
 import time
 from pathlib import Path
 
@@ -26,6 +27,22 @@ _CONDITION_TO_HP_MODE = {
     Condition.HP_BEHAVIOUR_ONLY: 'behaviour',
     Condition.HP_BOTH: 'both',
 }
+
+
+def _eval_worker(genotype: np.ndarray, run_config, worker_seed: int) -> float:
+    """Top-level so it is picklable by multiprocessing.Pool."""
+    rng = np.random.default_rng(worker_seed)
+    agent = _make_agent(genotype, run_config)
+    hp = HP(
+        H_L=run_config.hp.h_low, H_U=run_config.hp.h_high,
+        tau_w=run_config.hp.tau_w, tau_b=run_config.hp.tau_b,
+    )
+    return evaluate_fitness(
+        agent, hp, rng,
+        n_trials=run_config.env.n_trials,
+        n_shapes=run_config.env.n_shapes,
+        hp_mode=_CONDITION_TO_HP_MODE[run_config.condition],
+    )
 
 
 def run_experiment(
@@ -96,18 +113,27 @@ def run_experiment(
         population = ga.initial_population()
 
     for gen in range(start_gen, run_config.ga.n_gens):
-        fitnesses = np.array([
-            evaluate_fitness(
-                _make_agent(population[i], run_config),
-                HP(H_L=run_config.hp.h_low, H_U=run_config.hp.h_high,
-                   tau_w=run_config.hp.tau_w, tau_b=run_config.hp.tau_b),
-                rng,
-                n_trials=run_config.env.n_trials,
-                n_shapes=run_config.env.n_shapes,
-                hp_mode=hp_mode,
-            )
-            for i in range(pop_size)
-        ])
+        if run_config.n_workers == 1:
+            fitnesses = np.array([
+                evaluate_fitness(
+                    _make_agent(population[i], run_config),
+                    HP(H_L=run_config.hp.h_low, H_U=run_config.hp.h_high,
+                       tau_w=run_config.hp.tau_w, tau_b=run_config.hp.tau_b),
+                    rng,
+                    n_trials=run_config.env.n_trials,
+                    n_shapes=run_config.env.n_shapes,
+                    hp_mode=hp_mode,
+                )
+                for i in range(pop_size)
+            ])
+        else:
+            worker_args = [
+                (population[i], run_config,
+                 run_config.seed * 10000 + gen * 1000 + i)
+                for i in range(pop_size)
+            ]
+            with multiprocessing.Pool(run_config.n_workers) as pool:
+                fitnesses = np.array(pool.starmap(_eval_worker, worker_args))
 
         rng_state = rng.bit_generator.state
         current_elapsed = elapsed_seconds + (time.monotonic() - t0)

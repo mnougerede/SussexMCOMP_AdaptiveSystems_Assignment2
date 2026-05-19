@@ -29,6 +29,7 @@ class RunConfig:
     output_dir: str = ""
     dev_phase_steps: int = 6000
     git_commit: str = ""
+    n_workers: int = 1
 
 
 def run_config_to_json(config: RunConfig, path: str) -> None:
