@@ -41,6 +41,11 @@ def _eval_worker_baseline(genotype: np.ndarray, worker_seed: int) -> float:
     return evaluate_fitness(agent, HP(), rng, n_trials=N_TRIALS, n_shapes=N_SHAPES, hp_mode=HP_MODE)
 
 
+def _fmt_duration(seconds: float) -> str:
+    m, s = divmod(int(seconds), 60)
+    return f"{m}m{s:02d}s"
+
+
 # ── Run parameters ────────────────────────────────────────────────────────────
 POP_SIZE  = 30
 N_GENS    = 100
@@ -112,7 +117,12 @@ for gen in range(N_GENS):
             print(f"Runtime for gen 0 ({N_WORKERS} workers): {mean_t:.1f}s")
         print(f"Estimated remaining time: {eta_s / 60:.1f} min\n")
 
-    print(f"Gen {gen:3d}:  best={best_history[-1]:.4f}  mean={mean_history[-1]:.4f}")
+    elapsed = time.monotonic() - t_run_start
+    mean_gen_s = elapsed / (gen + 1)
+    eta_rolling = mean_gen_s * (N_GENS - gen - 1)
+    w = len(str(N_GENS))
+    print(f"Gen {gen:0{w}d}/{N_GENS}  best={best_history[-1]:.4f}  mean={mean_history[-1]:.4f}"
+          f"  elapsed={_fmt_duration(elapsed)}  ETA={_fmt_duration(eta_rolling)}")
 
     if gen < N_GENS - 1:
         population = ga.step(population, fitnesses)

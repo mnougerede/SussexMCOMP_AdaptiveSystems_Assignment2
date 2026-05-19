@@ -11,6 +11,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -32,6 +33,15 @@ _ALIASES: dict[str, str] = {
     "behaviour_only": "HP_BEHAVIOUR_ONLY",
     "both": "HP_BOTH",
 }
+# Reverse map: enum name -> display label
+_COND_LABEL: dict[str, str] = {v: k for k, v in _ALIASES.items()}
+
+
+def _fmt_eta(seconds: float) -> str:
+    m = round(seconds / 60)
+    if m < 60:
+        return f"{m}m"
+    return f"{m // 60}h{m % 60:02d}m"
 
 
 def _resolve_condition(name: str) -> Condition:
@@ -115,6 +125,8 @@ def main() -> None:
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Launch runs sequentially
+    run_wall_times: list[float] = []
+
     for idx, spec in enumerate(run_specs):
         condition = Condition[spec["condition"]]
         seed = spec["seed"]
@@ -132,8 +144,18 @@ def main() -> None:
             n_workers=args.n_workers,
         )
 
-        print(f"[{idx + 1}/{len(run_specs)}] {condition.name} seed={seed} ...", flush=True)
+        cond_label = _COND_LABEL.get(condition.name, condition.name.lower())
+        ri = idx % args.n_runs
+        header = f"Starting run {ri + 1}/{args.n_runs} ({cond_label}, seed={seed})"
+        if run_wall_times:
+            mean_run_s = sum(run_wall_times) / len(run_wall_times)
+            eta_s = mean_run_s * (len(run_specs) - idx)
+            header += f" — ~{_fmt_eta(eta_s)} remaining in batch"
+        print(header, flush=True)
+
+        t_run = time.monotonic()
         run_experiment(config, manifest_path)
+        run_wall_times.append(time.monotonic() - t_run)
 
         # Tag the manifest entry with the batch label so the status script can find it
         update_run_entry(manifest_path, output_dir.name, batch=args.batch)
