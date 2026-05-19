@@ -19,11 +19,11 @@ def _shape_contribution(shape_init, body_xs_i, shape_xs_i):
     return 0.5 * (first + second)
 
 
-def evaluate_fitness(agent, hp, rng, n_trials=10, hp_mode='none'):
+def evaluate_fitness(agent, hp, rng, n_trials=10, n_shapes=20, hp_mode='none'):
     total = 0.0
     for _ in range(n_trials):
         body = AgentBody()
-        record = run_trial(agent, hp, body, rng, hp_mode=hp_mode)
+        record = run_trial(agent, hp, body, rng, n_shapes=n_shapes, hp_mode=hp_mode)
         n_shapes = len(record.shape_inits)
         trial_sum = sum(
             _shape_contribution(record.shape_inits[i], record.body_xs[i], record.shape_xs[i])
