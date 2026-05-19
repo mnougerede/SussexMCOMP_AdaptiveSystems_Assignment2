@@ -199,14 +199,15 @@ The single best individual from the parental generation is copied unchanged into
 
 ### 8.3 Mutation
 
-Each allele is mutated independently with probability $p_m$. When mutated, the new value is the old value plus a Gaussian perturbation:
+Each allele is mutated independently with probability $p_m = 0.03$ (Williams's rate). When mutated, the new value is the old value plus a Gaussian perturbation:
 
 $$
 g_i' \;=\; g_i + \mathcal{N}(0, \sigma_m^2)
-\qquad (7)
-$$
+\qquad (7)$$
 
-Reflected at the boundaries: if $g_i' > 1$ then $g_i' \leftarrow 2 - g_i'$, and symmetrically if $g_i' < -1$. Mutation parameters $p_m$ and $\sigma_m$ to be set during the GA baseline check (Phase 6) — start with $p_m = 0.1$ and $\sigma_m = 0.1$, adjust based on whether the no-HP baseline achieves Williams's reported performance.
+with $\sigma_m = 0.1$. Reflected at the boundaries: if $g_i' > 1$ then $g_i' \leftarrow 2 - g_i'$, and symmetrically if $g_i' < -1$.
+
+Williams uses a mixed mutation scheme (half uniform reset, half uniform perturbation). We use a pure Gaussian scheme with Williams's rate. The Gaussian concentrates mutations near the current value, giving stronger local search properties than the flat uniform perturbation, while the Gaussian tail provides occasional larger jumps. $p_m = 0.03$ matches Williams and gives on average one allele mutated per genotype per generation (35 alleles × 0.03 ≈ 1.05).
 
 ### 8.4 Initialisation
 
@@ -214,8 +215,7 @@ Each allele independently drawn uniformly from $[-1, 1]$.
 
 ### 8.5 Population, generations, runs
 
-Target: population 50, generations 500, 10 runs per condition (Williams's scale).
-Fallback if compute is constrained: 30 × 300 × 5 (decision deferred to after the GA baseline check).
+Target: population 20, generations 200, 5 runs per condition. Williams used 50 × 500 × 10, which exceeds the available compute budget at our per-evaluation runtime. The scaled-down parameters are documented in `plan/experiment_targets.json`. Expected wall time on the desktop (i5-9600K, 6 cores, `n_workers=6`): approximately 1 hour per condition.
 
 ### 8.6 Reproducibility
 
@@ -244,7 +244,7 @@ Following Williams Chapter 7 Experiments 1 and 2:
 3. **HP during behaviour** — HP active throughout every trial; no separate developmental phase.
 4. **HP during development and behaviour** — 6000 timesteps of HP before each trial, then HP continues during the trial.
 
-Williams uses 10 runs per condition; we target 10, fall back to 5 if compute requires (decision documented in `notes/design_decisions.md`).
+Williams uses 10 runs per condition; we use 5 (documented in `plan/experiment_targets.json`; see `notes/design_decisions.md` for compute rationale).
 
 Each evolutionary run is initialised from a different random seed, recorded in the run's manifest entry. Raw per-generation data (best genotype, fitness statistics) are saved to disk per run; all plots are regenerated from saved data, not from live runs.
 
@@ -260,13 +260,9 @@ Results: fraction of firing-rate samples outside $[H_L, H_U]$ was 0.861 before H
 
 ### 10.2 GA baseline check
 
-`[TBD: Pass — GA]`
+`[TBD: Pass — run ga_baseline_check.py on desktop after WSL2 setup]`
 
-Outline:
-- Evolve non-plastic CTRNNs on ball-catching for a small number of runs (e.g. 30 × 100).
-- Confirm that fitness curves rise above the random baseline.
-- Confirm that the best-evolved individuals catch most balls in a visual trajectory inspection.
-- Measure single-evaluation runtime; use this to decide between Williams-scale and scaled-down for the main experiments.
+Script is ready (`scripts/ga_baseline_check.py`). Will evolve non-plastic CTRNNs for 100 generations, population 30, seed 42, `n_workers=6` on the desktop. Gate: fitness curve rises clearly above 0.5 by generation 50–100; trajectory shows agent tracking shapes; per-evaluation timing confirms the full experiment is feasible overnight.
 
 ---
 

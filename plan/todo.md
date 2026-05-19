@@ -112,37 +112,47 @@ Two other assignments running in parallel. This is the live to-do list — re-ch
 
 ---
 
-## Phase 6 — Genetic algorithm and fitness function (NEXT)
+## Phase 6 — Genetic algorithm and fitness function (done)
 
-Settle in chat before writing prompts:
+- [x] **Mutation parameters** — settled: $p_m = 0.03$ (Williams's rate), $\sigma_m = 0.1$, Gaussian with boundary reflection. Pure Gaussian preferred over Williams's mixed scheme; rate matches Williams.
+- [x] **Williams eq. 7.3** — confirmed full form: combined displacement-reduction + final-distance score, per-shape $S_{\max} = (1 + |v_{x,\text{shape}}|) \cdot 100/|v_{y,\text{shape}}|$, $\phi$ clips negative reduction to 0.
+- [x] **GA pass** — `src/ga/ga.py`, tournament $K=3$, elitism 1, Gaussian mutation, boundary reflection. 8/8 tests passing.
+- [x] **Fitness function pass** — `src/environment/fitness.py`, Williams eq. 7.3 full form, $S_0 = 0$ handled gracefully. 11/11 tests passing.
+- [x] **Wire GA into evolve.py** — real evolution replacing stub; `hp_mode` from condition enum; checkpointing every 10 generations. 63/63 tests passing.
+- [x] **Baseline check script** — `scripts/ga_baseline_check.py`; fitness curve and trajectory figure saved to `figs/`.
 
-- [ ] **Mutation parameters** — start $p_m = 0.1$, $\sigma_m = 0.1$; tune in the GA baseline check.
-- [ ] **Williams's eq. 7.3 — re-read carefully.** It is a *combined* displacement-reduction + final-distance score, not just final distance. Earlier drafts of methods log were wrong. Get it right before the fitness pass.
-
-Then:
-
-- [ ] **GA pass** — `src/ga/ga.py` implementing tournament selection (K = 3) + elitism of 1 + Gaussian mutation with boundary reflection. Genotype length 35, alleles in $[-1, 1]$. Seeded reproducibility (already tested via `test_evolve.py`'s resumption test).
-- [ ] **Fitness function pass** — `src/environment/fitness.py`. Williams eq. 7.3 (full form). Tests: known agent and shape positions give known $F$; out-of-range cases handled.
-- [ ] **Wire GA into existing `run_experiment` stub** (`src/experiments/evolve.py`); replace stub's random-noise placeholder with real evolution. Persistence already there.
-- [ ] **Baseline check.** Evolve no-HP CTRNNs for a small number of runs (e.g. 30 × 100); confirm fitness curves rise above the random baseline; best evolved individuals catch most balls in visual trajectory inspection; measure runtime per evaluation. **Use this measurement to decide: Williams-scale or scaled-down for Phase 7.**
-
-**Gate:** evolution works on the no-HP baseline; checkpointing demonstrably resumes mid-run; runtime measured.
+**Status:** 63/63 tests passing.
 
 ---
 
-## Phase 7 — Williams replication (Milestone)
+## Phase 7 — Performance, infrastructure, and Williams replication (NEXT)
+
+### 7a–7c: Performance and experiment infrastructure (done)
+
+- [x] **Performance optimisations** — ray angles precomputed as module-level constants; CTRNN outputs setter bypassed in `euler_step`. Per-timestep cost: 79 µs → 31 µs (2.6× speedup). Full-experiment estimate: ~6.7h single-threaded.
+- [x] **Multiprocessing** — `n_workers` field in `RunConfig`; `evolve.py` parallelises fitness evaluation across individuals via `multiprocessing.Pool`. Deterministic with fixed seed. Existing 63 tests pass.
+- [x] **Experiment status and batch launcher** — `scripts/experiment_status.py` (read-only status view over all manifests); `scripts/launch_batch.py` (CLI launcher with provenance tracking in `batches/`); `plan/experiment_targets.json` (human-editable targets: 5 runs/condition, 200 generations).
+- [x] **Backup plan** — `experiments/` gitignored (runtime output); backed up to OneDrive after each batch. `batches/` versioned as lightweight provenance.
+
+### 7d: GA baseline check and scale decision (NEXT)
+
+- [ ] **WSL2 setup on desktop** (i5-9600K, 6 real cores) — one-time setup, ~1h
+- [ ] **Run `ga_baseline_check.py` on desktop** — 100 generations, pop 30, seed 42, `n_workers=6`. Gate: fitness curve rises clearly above 0.5; trajectory shows agent tracking shapes; per-evaluation timing obtained.
+- [ ] **Scale decision** — based on desktop timing, confirm or adjust: target 200 generations, pop 20, 3 trials/evaluation, 5 runs/condition. Expected wall time ~1h with 6 cores.
+
+### 7e: Williams replication runs
 
 Four conditions (per `notes/methods_log.md` §9):
 
-1. No HP
-2. HP during development only
-3. HP during behaviour only, no developmental phase
-4. HP during development and behaviour
+1. No HP (`no_hp`)
+2. HP during development only (`dev_only`)
+3. HP during behaviour only (`behaviour_hp`)
+4. HP during development and behaviour (`both`)
 
-- [ ] 5 or 10 runs per condition (decision after Phase 6 runtime check)
+- [ ] 5 runs per condition via `launch_batch.py` — run overnight on desktop
 - [ ] Best-fitness-per-generation curves with error bands across runs (Williams Fig. 7.2 equivalent)
-- [ ] Final-fitness box plots across runs
-- [ ] Qualitative check: does Williams's ordering hold *with our better-conditioned GA*? — note that if it doesn't, this is itself a substantive finding
+- [ ] Final-fitness box plots across conditions
+- [ ] Qualitative check: does Williams's ordering hold with our better-conditioned GA?
 
 **Gate:** four-condition fitness plot ready for the report.
 
@@ -240,14 +250,13 @@ Order: methods polish → results → analyses → discussion → introduction �
 
 ---
 
-## Time budget (12 days, two other assignments in parallel)
+## Time budget (9 days remain, two other assignments in parallel)
 
-- **Today (16 May):** Update planning docs (this pass). System diagram sketch. Settle HP integration-order and state-persistence questions.
-- **17–18 May:** HP module (Pass 4a). Substrate-level sanity check figure.
-- **19–21 May:** Phase 5 simulator body — shapes, sensors, agent body, trial runner.
-- **22–23 May:** Phase 6 GA + fitness function + baseline check (incl. runtime measurement).
-- **24–25 May:** Phase 7 Williams replication runs (overnight + multiple machines if possible).
-- **26–27 May:** Phase 8 analyses; figures from saved data; writing.
+- **19 May (today):** Doc updates. WSL2 setup on desktop. GA baseline check.
+- **20–21 May:** Launch full replication runs on desktop overnight. Monitor with `experiment_status.py`.
+- **22–23 May:** Phase 8 analyses from saved data; visualisation pass.
+- **24–25 May:** Writing — methods polish, results, analyses.
+- **26–27 May:** Writing — discussion, introduction, abstract.
 - **28 May:** Submit by mid-afternoon. Half-day buffer.
 
 Critical-path risks:
