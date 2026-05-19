@@ -120,7 +120,10 @@ class CTRNN:
         external_inputs = np.asarray(external_inputs)
         total_inputs = external_inputs + self.weights.dot(self.outputs)
         self.states += self.step_size*(1/self.taus)* (total_inputs - self.states)
-        self.outputs = self.sigmoid(self.gains*(self.states+self.biases))
+        # Write directly to the private attribute to skip the outputs setter,
+        # which would call inverse_sigmoid to back-derive __states — redundant
+        # since __states was already updated on the line above.
+        self._CTRNN__outputs = self.sigmoid(self.gains*(self.states+self.biases))
 
     def sigmoid(self,s):
         '''
