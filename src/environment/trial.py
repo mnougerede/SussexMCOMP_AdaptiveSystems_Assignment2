@@ -39,7 +39,7 @@ def run_trial(agent, hp, body, rng, n_shapes=20, hp_mode='none', dev_steps=6000)
 
     for _ in range(n_shapes):
         shape = make_shape(body.x, rng)
-        shape_inits.append((shape.x, shape.vx, shape.vy))
+        shape_inits.append((shape.x, shape.vx, shape.vy, body.x))
 
         bx_t, sx_t, sy_t, zs_t = [], [], [], []
 
