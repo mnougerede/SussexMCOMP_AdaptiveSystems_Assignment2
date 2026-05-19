@@ -1,0 +1,6 @@
+{
+  "_comment": "Human-editable. Read by scripts/experiment_status.py to compute Done/Remaining counts.",
+  "n_runs_per_condition": 5,
+  "n_gens": 200,
+  "conditions": ["HP_OFF", "HP_DEV_ONLY", "HP_BEHAVIOUR_ONLY", "HP_BOTH"]
+}

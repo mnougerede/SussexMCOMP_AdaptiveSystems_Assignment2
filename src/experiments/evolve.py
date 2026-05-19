@@ -2,6 +2,7 @@ import dataclasses
 import json
 import multiprocessing
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -166,7 +167,11 @@ def run_experiment(
         if gen < run_config.ga.n_gens - 1:
             population = ga.step(population, fitnesses)
 
-    update_run_entry(manifest_path, run_id, status="complete")
+    update_run_entry(
+        manifest_path, run_id,
+        status="complete",
+        completed_at=datetime.now(timezone.utc).isoformat(),
+    )
 
 
 def _make_agent(genotype: np.ndarray, run_config: RunConfig) -> CTRNNAgent:
