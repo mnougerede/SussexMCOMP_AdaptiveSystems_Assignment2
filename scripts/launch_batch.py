@@ -12,6 +12,7 @@ import json
 import os
 import sys
 import time
+import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -126,6 +127,7 @@ def main() -> None:
 
     # Launch runs sequentially
     run_wall_times: list[float] = []
+    failed_runs: list[dict] = []
 
     for idx, spec in enumerate(run_specs):
         condition = Condition[spec["condition"]]
@@ -154,7 +156,28 @@ def main() -> None:
         print(header, flush=True)
 
         t_run = time.monotonic()
-        run_experiment(config, manifest_path)
+        try:
+            run_experiment(config, manifest_path)
+        except Exception as exc:
+            run_wall_times.append(time.monotonic() - t_run)
+            tb = traceback.format_exc()
+            print(
+                f"    FAILED — condition={cond_label}, seed={seed}\n"
+                f"{tb}",
+                flush=True,
+            )
+            failed_runs.append({"idx": idx, "condition": cond_label, "seed": seed, "error": str(exc)})
+            with open(batch_file) as f:
+                record = json.load(f)
+            record["runs"][idx].update({
+                "status": "failed",
+                "output_dir": str(output_dir),
+                "completed_at": _iso_now(),
+                "error": str(exc),
+            })
+            with open(batch_file, "w") as f:
+                json.dump(record, f, indent=2)
+            continue
         run_wall_times.append(time.monotonic() - t_run)
 
         # Tag the manifest entry with the batch label so the status script can find it
@@ -188,7 +211,15 @@ def main() -> None:
     with open(batch_file, "w") as f:
         json.dump(record, f, indent=2)
 
-    print(f"\nBatch '{args.batch}' complete.")
+    n_total = len(run_specs)
+    n_failed = len(failed_runs)
+    n_ok = n_total - n_failed
+
+    print(f"\nBatch '{args.batch}' complete — {n_ok}/{n_total} succeeded, {n_failed}/{n_total} failed.")
+    if failed_runs:
+        print("  Failed runs:")
+        for r in failed_runs:
+            print(f"    run {r['idx'] + 1}: condition={r['condition']}, seed={r['seed']} — {r['error']}")
     print(f"  Runs:      experiments/{args.batch}/")
     print(f"  Batch file: {batch_file}")
     print()
