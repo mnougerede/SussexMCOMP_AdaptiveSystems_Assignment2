@@ -169,6 +169,9 @@ def main() -> None:
     print(f"\nBatch '{args.batch}' complete.")
     print(f"  Runs:      experiments/{args.batch}/")
     print(f"  Batch file: {batch_file}")
+    print()
+    print("Batch complete. Back up experiments/ before starting the next batch.")
+    print("Suggested command: cp -r experiments/ ~/OneDrive/adaptive_systems_backup/experiments_$(date +%Y%m%d)/")
 
 
 if __name__ == "__main__":
