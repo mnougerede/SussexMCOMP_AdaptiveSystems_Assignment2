@@ -13,6 +13,7 @@ Prints:
   final best fitness
 """
 
+import multiprocessing
 import os
 import sys
 import time
@@ -32,6 +33,14 @@ from environment.trial import run_trial
 from ga.ga import GA
 from plasticity.hp import HP
 
+def _eval_worker_baseline(genotype: np.ndarray, worker_seed: int) -> float:
+    """Top-level so it is picklable by multiprocessing.Pool."""
+    rng = np.random.default_rng(worker_seed)
+    agent = CTRNNAgent(ctrnn_config)
+    agent.load_genotype(genotype)
+    return evaluate_fitness(agent, HP(), rng, n_trials=N_TRIALS, n_shapes=N_SHAPES, hp_mode=HP_MODE)
+
+
 # ── Run parameters ────────────────────────────────────────────────────────────
 POP_SIZE  = 30
 N_GENS    = 100
@@ -39,6 +48,7 @@ N_TRIALS  = 5
 N_SHAPES  = 20
 SEED      = 42
 HP_MODE   = 'none'
+N_WORKERS = 6
 
 ROOT     = Path(__file__).parent.parent
 FIGS_DIR = ROOT / 'figs'
@@ -65,16 +75,26 @@ for gen in range(N_GENS):
     fitnesses = np.empty(POP_SIZE)
     gen_times: list[float] = []
 
-    for i in range(POP_SIZE):
-        agent = CTRNNAgent(ctrnn_config)
-        agent.load_genotype(population[i])
-        hp = HP()
+    if N_WORKERS == 1:
+        for i in range(POP_SIZE):
+            agent = CTRNNAgent(ctrnn_config)
+            agent.load_genotype(population[i])
+            hp = HP()
 
+            t0 = time.monotonic()
+            fitnesses[i] = evaluate_fitness(
+                agent, hp, rng,
+                n_trials=N_TRIALS, n_shapes=N_SHAPES, hp_mode=HP_MODE,
+            )
+            gen_times.append(time.monotonic() - t0)
+    else:
+        worker_args = [
+            (population[i], SEED * 10000 + gen * 1000 + i)
+            for i in range(POP_SIZE)
+        ]
         t0 = time.monotonic()
-        fitnesses[i] = evaluate_fitness(
-            agent, hp, rng,
-            n_trials=N_TRIALS, n_shapes=N_SHAPES, hp_mode=HP_MODE,
-        )
+        with multiprocessing.Pool(N_WORKERS) as pool:
+            fitnesses[:] = pool.starmap(_eval_worker_baseline, worker_args)
         gen_times.append(time.monotonic() - t0)
 
     best_history.append(float(fitnesses.max()))
@@ -84,8 +104,12 @@ for gen in range(N_GENS):
         eval_times_gen0 = gen_times
         mean_t = np.mean(eval_times_gen0)
         std_t  = np.std(eval_times_gen0)
-        eta_s  = mean_t * POP_SIZE * (N_GENS - 1)
-        print(f"Runtime per eval (gen 0): mean={mean_t:.3f}s  std={std_t:.3f}s")
+        if N_WORKERS == 1:
+            eta_s = mean_t * POP_SIZE * (N_GENS - 1)
+            print(f"Runtime per eval (gen 0): mean={mean_t:.3f}s  std={std_t:.3f}s")
+        else:
+            eta_s = mean_t * (N_GENS - 1)
+            print(f"Runtime for gen 0 ({N_WORKERS} workers): {mean_t:.1f}s")
         print(f"Estimated remaining time: {eta_s / 60:.1f} min\n")
 
     print(f"Gen {gen:3d}:  best={best_history[-1]:.4f}  mean={mean_history[-1]:.4f}")
