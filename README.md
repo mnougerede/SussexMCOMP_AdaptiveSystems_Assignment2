@@ -62,4 +62,4 @@ PYTHONPATH=src uv run python scripts/experiment_status.py
 
 ## Author
 
-Max Nougerede, University of Sussex, MComp Adaptive Systems 2025/26.
+Max de la Nougerede, University of Sussex, MComp Adaptive Systems 2025/26.
