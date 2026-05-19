@@ -34,4 +34,6 @@ htmlcov/
 # Project-specific
 results/data/
 results/figures/
+experiments/
+figs/
 *.npy
