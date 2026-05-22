@@ -134,24 +134,28 @@ Two other assignments running in parallel. This is the live to-do list — re-ch
 - [x] **Experiment status and batch launcher** — `scripts/experiment_status.py` (read-only status view over all manifests); `scripts/launch_batch.py` (CLI launcher with provenance tracking in `batches/`); `plan/experiment_targets.json` (human-editable targets: 5 runs/condition, 200 generations).
 - [x] **Backup plan** — `experiments/` gitignored (runtime output); backed up to OneDrive after each batch. `batches/` versioned as lightweight provenance.
 
-### 7d: GA baseline check and scale decision (NEXT)
+### 7d: GA baseline check and scale decision (done)
 
-- [ ] **WSL2 setup on desktop** (i5-9600K, 6 real cores) — one-time setup, ~1h
-- [ ] **Run `ga_baseline_check.py` on desktop** — 100 generations, pop 30, seed 42, `n_workers=6`. Gate: fitness curve rises clearly above 0.5; trajectory shows agent tracking shapes; per-evaluation timing obtained.
-- [ ] **Scale decision** — based on desktop timing, confirm or adjust: target 200 generations, pop 20, 3 trials/evaluation, 5 runs/condition. Expected wall time ~1h with 6 cores.
+- [x] **WSL2 setup on desktop** (i5-9600K, 6 cores) — done
+- [x] **GA baseline check** — `no_hp`, 100 generations, pop 30, seed 42, `n_workers=6`. Mean fitness > 0.5 by gen 3, plateaued ~0.7–0.8. Best individual 0.85, trajectory shows clean shape tracking. ~17s/generation with 6 workers.
+- [x] **Scale decision** — pop 30, 200 generations, 5 runs/condition, 3 trials/evaluation. (Population kept at 30 rather than 20 for richer dynamics; split across two machines to fit the time budget.) Note: HP conditions run slower than the `no_hp` baseline check predicted, due to the 6000-timestep developmental phase the baseline never measured.
 
-### 7e: Williams replication runs
+### 7e: Williams replication runs (done — data collected)
 
-Four conditions (per `notes/methods_log.md` §9):
+Four conditions: `no_hp`, `dev_only`, `behaviour_only`, `both`. 5 runs each, 20 total. Split across two machines: 4 runs/condition on desktop (`replication_desktop`, seeds 100–403), 1 run/condition on laptop (`replication_laptop`, seeds 500–800). All 20 complete, 0 failures.
 
-1. No HP (`no_hp`)
-2. HP during development only (`dev_only`)
-3. HP during behaviour only (`behaviour_hp`)
-4. HP during development and behaviour (`both`)
+**Final best fitnesses (5 runs per condition):**
+- `no_hp`: 0.51, 0.81, 0.67, 0.67, 0.70 → mean ≈ 0.67
+- `dev_only`: 0.83, 0.84, 0.88, 0.73, 0.88 → mean ≈ 0.83
+- `behaviour_only`: 0.71, 0.67, 0.67, 0.85, 0.68 → mean ≈ 0.72
+- `both`: 0.82, 0.57, 0.59, 0.65, 0.68 → mean ≈ 0.66
 
-- [ ] 5 runs per condition via `launch_batch.py` — run overnight on desktop
-- [ ] Best-fitness-per-generation curves with error bands across runs (Williams Fig. 7.2 equivalent)
+Preliminary read (NOT yet plotted or tested): `dev_only` clearly best, consistent with Williams. `both` looks lowest, possibly below `no_hp` — online HP may interfere with the developmental benefit. High within-condition variance; needs proper statistics before any claim.
+
+**Still to do (the analysis):**
+- [ ] Best-fitness-per-generation curves with error bands across runs (Williams Fig. 7.2 equivalent) — read from `history/gen_NNNN.npz`
 - [ ] Final-fitness box plots across conditions
+- [ ] Significance test on condition differences (n=5; decide whether more runs are needed AFTER seeing variance)
 - [ ] Qualitative check: does Williams's ordering hold with our better-conditioned GA?
 
 **Gate:** four-condition fitness plot ready for the report.
