@@ -37,3 +37,5 @@ results/figures/
 experiments/
 figs/
 *.npy
+batches/replication_desktop.json
+batches/replication_laptop.json
