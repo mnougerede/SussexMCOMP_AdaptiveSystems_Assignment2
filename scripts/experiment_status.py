@@ -23,6 +23,22 @@ def _load_targets() -> dict:
         return json.load(f)
 
 
+def _resolve_output_dir(entry: dict) -> Path:
+    """Return the output_dir Path, falling back to a local search if the stored
+    absolute path doesn't exist (e.g. results copied from another machine)."""
+    p = Path(entry.get("output_dir", ""))
+    if p.exists():
+        return p
+    # Search by the leaf directory name under the local experiments tree
+    name = p.name or entry.get("run_id", "")
+    if name:
+        candidates = sorted(EXPERIMENTS_DIR.rglob(name))
+        candidates = [c for c in candidates if c.is_dir()]
+        if candidates:
+            return candidates[0]
+    return p
+
+
 def _n_gens_for_run(output_dir: Path, fallback: int) -> int:
     config_path = output_dir / "config.json"
     if config_path.exists():
@@ -32,12 +48,13 @@ def _n_gens_for_run(output_dir: Path, fallback: int) -> int:
     return fallback
 
 
-def _run_status(entry: dict, target_n_gens: int) -> str:
+def _run_status(entry: dict, target_n_gens: int, output_dir: Path | None = None) -> str:
     """Returns 'done', 'running', or 'pending'."""
     if entry.get("status") == "complete":
         return "done"
 
-    output_dir = Path(entry.get("output_dir", ""))
+    if output_dir is None:
+        output_dir = Path(entry.get("output_dir", ""))
     if not output_dir.exists():
         return "pending"
 
@@ -118,7 +135,7 @@ def main() -> None:
             continue
         if cond not in counts:
             counts[cond] = {"done": 0, "running": 0}
-        s = _run_status(entry, target_n_gens)
+        s = _run_status(entry, target_n_gens, _resolve_output_dir(entry))
         if s == "done":
             counts[cond]["done"] += 1
         elif s == "running":
@@ -155,9 +172,9 @@ def main() -> None:
     # ── Completed runs list ───────────────────────────────────────────────────
     completed = []
     for entry in all_entries:
-        if _run_status(entry, target_n_gens) != "done":
+        output_dir = _resolve_output_dir(entry)
+        if _run_status(entry, target_n_gens, output_dir) != "done":
             continue
-        output_dir = Path(entry.get("output_dir", ""))
         fitness = _final_best_fitness(output_dir) if output_dir.exists() else float("nan")
         completed.append({
             "condition": entry.get("condition", ""),
