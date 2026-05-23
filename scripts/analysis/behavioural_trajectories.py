@@ -25,6 +25,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+from matplotlib.lines import Line2D
 import numpy as np
 
 from agent.body import AgentBody
@@ -53,9 +55,31 @@ N_SHAPES    = 20
 H_L         = 0.2
 H_U         = 0.8
 
-_COND_COLOURS   = dict(zip(CONDITION_ORDER, ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]))
-_NEURON_COLOURS = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"]
-_NEURON_LABELS  = [f"n{i}" for i in range(5)]
+_COND_COLOURS = dict(zip(CONDITION_ORDER, ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]))
+
+# Heatmap neuron row labels, top-to-bottom (n0 … n4)
+_NEURON_YTICK_LABELS = [
+    "Left sensor",
+    "Ctr sensor",
+    "Rgt sensor",
+    "Left motor",
+    "Rgt motor",
+]
+
+# Custom diverging colormap: deep blue below H_L, light neutral in viable range,
+# deep red above H_U. Step-like transitions keep the three zones visually sharp.
+# Luminance profile is dark–light–dark so the structure survives greyscale printing.
+_HP_CMAP = mcolors.LinearSegmentedColormap.from_list(
+    "hp_activity",
+    [
+        (0.000, "#1A4F8A"),   # deep blue  — under-activity
+        (0.199, "#1A4F8A"),   # deep blue  — holds to H_L boundary
+        (0.200, "#F0EFE8"),   # light cream — start of viable range
+        (0.800, "#F0EFE8"),   # light cream — end of viable range
+        (0.801, "#A61C22"),   # deep red   — start of over-activity
+        (1.000, "#A61C22"),   # deep red   — holds to top
+    ],
+)
 
 
 # ── Helper: locate best_per_gen file ─────────────────────────────────────────
@@ -132,52 +156,68 @@ def _fill_cell(
     ax_neural,
     record,
     colour: str,
-    show_traj_legend: bool,
-    show_neural_legend: bool,
     show_xlabel: bool,
     show_ylabels: bool,
-) -> None:
-    """Populate one cell's two-panel stack from a TrialRecord."""
+) -> object:
+    """Populate one cell's two-panel stack from a TrialRecord.
+
+    Returns the imshow artist so the caller can attach a shared colourbar.
+    """
     agent_x = np.concatenate(record.body_xs)
     shape_x = np.concatenate(record.shape_xs)
     neural  = np.concatenate(record.neural_states, axis=0)   # (T_total, 5)
-    t = np.arange(len(agent_x))
+    T = len(agent_x)
+    t = np.arange(T)
 
-    # Upper: x-position traces
-    ax_traj.plot(t, agent_x, color=colour,    lw=0.8,  label="Agent x")
-    ax_traj.plot(t, shape_x, color="#888888", lw=0.8,  ls="--", alpha=0.8, label="Shape x")
+    # Shape-episode boundaries (timestep indices where a new shape begins)
+    lens       = [len(xs) for xs in record.body_xs]
+    boundaries = np.cumsum(lens)[:-1]
+
+    # ── Upper panel: horizontal position traces ──────────────────────────────
+    ax_traj.plot(t, agent_x, color=colour,    lw=0.8)
+    ax_traj.plot(t, shape_x, color="#888888", lw=0.8, ls="--", alpha=0.8)
+    for b in boundaries:
+        ax_traj.axvline(b, color="grey", lw=0.4, alpha=0.25, zorder=1)
+    ax_traj.set_xlim(0, T - 1)
     ax_traj.tick_params(labelsize=6)
     ax_traj.tick_params(axis="x", labelbottom=False)
     ax_traj.spines["top"].set_visible(False)
     ax_traj.spines["right"].set_visible(False)
     if show_ylabels:
-        ax_traj.set_ylabel("x pos", fontsize=7)
-    if show_traj_legend:
-        ax_traj.legend(fontsize=6, frameon=False, loc="upper right",
-                       handlelength=1.2, borderpad=0.3, labelspacing=0.2)
+        ax_traj.set_ylabel("Horizontal\nposition", fontsize=6.5)
 
-    # Lower: per-neuron firing rates
-    for i in range(5):
-        ax_neural.plot(
-            t, neural[:, i],
-            color=_NEURON_COLOURS[i], lw=0.55, alpha=0.85,
-            label=_NEURON_LABELS[i],
-        )
-    ax_neural.axhline(H_L, color="black", lw=0.7, ls="--", alpha=0.45)
-    ax_neural.axhline(H_U, color="black", lw=0.7, ls="--", alpha=0.45)
-    ax_neural.set_ylim(0, 1)
+    # ── Lower panel: neural activity heatmap (5 rows × T cols) ───────────────
+    # neural.T has shape (5, T); row 0 = n0 (left sensor) at the top.
+    extent = [-0.5, T - 0.5, 4.5, -0.5]   # [x_left, x_right, y_bottom, y_top]
+    im = ax_neural.imshow(
+        neural.T,
+        aspect="auto",
+        origin="upper",
+        vmin=0, vmax=1,
+        cmap=_HP_CMAP,
+        interpolation="nearest",
+        extent=extent,
+    )
+    for b in boundaries:
+        ax_neural.axvline(b, color="white", lw=0.5, alpha=0.55, zorder=5)
+    ax_neural.set_xlim(0, T - 1)
     ax_neural.tick_params(labelsize=6)
     ax_neural.spines["top"].set_visible(False)
     ax_neural.spines["right"].set_visible(False)
-    if show_xlabel:
-        ax_neural.set_xlabel("Time (steps)", fontsize=7)
+
+    # y-ticks: one per neuron row, centred at integer positions 0–4
+    ax_neural.set_yticks([0, 1, 2, 3, 4])
     if show_ylabels:
-        ax_neural.set_ylabel("Output", fontsize=7)
-    if show_neural_legend:
-        ax_neural.legend(
-            fontsize=5.5, frameon=False, loc="upper right",
-            handlelength=1.0, borderpad=0.2, labelspacing=0.15, ncol=3,
-        )
+        ax_neural.set_yticklabels(_NEURON_YTICK_LABELS, fontsize=5.5)
+    else:
+        ax_neural.set_yticklabels([])
+
+    if show_xlabel:
+        ax_neural.set_xlabel("Timestep (concatenated across 20 shapes)", fontsize=7)
+    else:
+        ax_neural.tick_params(axis="x", labelbottom=False)
+
+    return im
 
 
 def build_figure(cond_records: dict) -> plt.Figure:
@@ -185,21 +225,22 @@ def build_figure(cond_records: dict) -> plt.Figure:
     n_rows = len(CONDITION_ORDER)
     n_cols = N_TRIALS
 
-    fig = plt.figure(figsize=(12, 15))
+    # Reserve right margin for the colourbar and top margin for the legend.
+    fig = plt.figure(figsize=(13, 15))
     fig.patch.set_facecolor("white")
 
     outer = gridspec.GridSpec(
         n_rows, n_cols, figure=fig,
         hspace=0.65, wspace=0.38,
-        left=0.15, right=0.97, top=0.95, bottom=0.04,
+        left=0.15, right=0.86, top=0.91, bottom=0.06,
     )
 
-    # Accumulate leftmost-column axis pairs for row label placement
     left_ax_top: list = []
     left_ax_bot: list = []
+    im_ref = None   # one imshow artist for the shared colourbar
 
     for row_idx, cond in enumerate(CONDITION_ORDER):
-        colour   = _COND_COLOURS[cond]
+        colour      = _COND_COLOURS[cond]
         is_last_row = (row_idx == n_rows - 1)
 
         for col_idx, record in enumerate(cond_records[cond]):
@@ -210,17 +251,17 @@ def build_figure(cond_records: dict) -> plt.Figure:
                 height_ratios=[2, 1],
             )
             ax_traj   = fig.add_subplot(inner[0])
-            ax_neural = fig.add_subplot(inner[1], sharex=ax_traj)
+            ax_neural = fig.add_subplot(inner[1])
 
             is_left = (col_idx == 0)
 
-            _fill_cell(
+            im = _fill_cell(
                 ax_traj, ax_neural, record, colour,
-                show_traj_legend=(row_idx == 0 and col_idx == 0),
-                show_neural_legend=(row_idx == 0 and col_idx == 0),
                 show_xlabel=is_last_row,
                 show_ylabels=is_left,
             )
+            if im_ref is None:
+                im_ref = im
 
             if row_idx == 0:
                 ax_traj.set_title(
@@ -232,7 +273,7 @@ def build_figure(cond_records: dict) -> plt.Figure:
                 left_ax_top.append(ax_traj)
                 left_ax_bot.append(ax_neural)
 
-    # Row labels — centred over the full outer row cell (top of ax_traj to bottom of ax_neural)
+    # ── Row labels (condition names) ─────────────────────────────────────────
     for ax_t, ax_n, cond in zip(left_ax_top, left_ax_bot, CONDITION_ORDER):
         bbox_t = ax_t.get_position()
         bbox_n = ax_n.get_position()
@@ -243,6 +284,41 @@ def build_figure(cond_records: dict) -> plt.Figure:
             va="center", ha="center",
             fontsize=9, fontweight="bold",
             rotation=90,
+        )
+
+    # ── Shared trajectory legend (above the grid) ────────────────────────────
+    legend_handles = [
+        Line2D([0], [0], color="dimgray",  lw=1.2,          label="Agent x (condition colour)"),
+        Line2D([0], [0], color="#888888",  lw=1.0, ls="--", label="Shape x"),
+    ]
+    fig.legend(
+        handles=legend_handles,
+        loc="upper center",
+        ncol=2,
+        fontsize=8,
+        frameon=False,
+        bbox_to_anchor=(0.50, 0.975),
+    )
+
+    # ── Shared heatmap colourbar (right of grid) ─────────────────────────────
+    # Vertically centred, spanning roughly half the figure height.
+    cax = fig.add_axes([0.885, 0.25, 0.016, 0.42])
+    cb  = fig.colorbar(im_ref, cax=cax, orientation="vertical")
+    cb.set_label("Firing rate", fontsize=8, labelpad=6)
+    cb.set_ticks([0, H_L, H_U, 1])
+    cb.set_ticklabels(["0", "H_L", "H_U", "1"], fontsize=7)
+    # Annotate the H_L / H_U tick positions with their numeric values
+    cb.ax.yaxis.set_tick_params(labelsize=7)
+    for tick_val, extra in [(H_L, " (0.2)"), (H_U, " (0.8)")]:
+        cb.ax.annotate(
+            extra,
+            xy=(1, tick_val),
+            xycoords=("axes fraction", "data"),
+            xytext=(4, 0),
+            textcoords="offset points",
+            fontsize=6,
+            va="center",
+            color="#444444",
         )
 
     return fig
