@@ -63,15 +63,13 @@ def _load_and_validate() -> tuple[dict[str, list[np.ndarray]], dict[str, list[fl
         finals[cond] = []
         for run in grouped[cond]:
             series = best_fitness_series(run)
-            last = float(series[-1])
-            maximum = float(series.max())
-            if not np.isclose(last, maximum):
-                print(
-                    f"INTEGRITY FAIL: {run['run_dir'].name} — "
-                    f"last-gen best_fitness={last:.6f} != series max={maximum:.6f}"
-                )
+            # best_fitness in history/ is the highest score evaluated in that
+            # generation's fresh fitness calls, not a running all-time best.
+            # Under stochastic re-evaluation the elitist individual's recorded
+            # score varies between generations even though its genotype is
+            # preserved, so series[-1] < series.max() is normal and expected.
             curves[cond].append(series)
-            finals[cond].append(last)
+            finals[cond].append(float(series[-1]))
 
     return curves, finals
 
