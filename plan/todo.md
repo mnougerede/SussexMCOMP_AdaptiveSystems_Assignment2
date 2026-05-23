@@ -144,22 +144,25 @@ Two other assignments running in parallel. This is the live to-do list — re-ch
 
 Four conditions: `no_hp`, `dev_only`, `behaviour_only`, `both`. 5 runs each, 20 total. Split across two machines: 4 runs/condition on desktop (`replication_desktop`, seeds 100–403), 1 run/condition on laptop (`replication_laptop`, seeds 500–800). All 20 complete, 0 failures.
 
-**Final best fitnesses (5 runs per condition):**
-- `no_hp`: 0.51, 0.81, 0.67, 0.67, 0.70 → mean ≈ 0.67
-- `dev_only`: 0.83, 0.84, 0.88, 0.73, 0.88 → mean ≈ 0.83
-- `behaviour_only`: 0.71, 0.67, 0.67, 0.85, 0.68 → mean ≈ 0.72
-- `both`: 0.82, 0.57, 0.59, 0.65, 0.68 → mean ≈ 0.66
+**Final best fitnesses (5 runs per condition, computed):**
+- `no_hp`: 0.506, 0.812, 0.666, 0.674, 0.696 → mean 0.671, SD 0.109
+- `dev_only`: 0.833, 0.838, 0.875, 0.728, 0.884 → mean 0.832, SD 0.062
+- `behaviour_only`: 0.707, 0.674, 0.849, 0.684, 0.666 → mean 0.716, SD 0.076
+- `both`: 0.568, 0.589, 0.653, 0.685, 0.821 → mean 0.663, SD 0.100
 
-Preliminary read (NOT yet plotted or tested): `dev_only` clearly best, consistent with Williams. `both` looks lowest, possibly below `no_hp` — online HP may interfere with the developmental benefit. High within-condition variance; needs proper statistics before any claim.
+**Computed result (replication_figure.py, first batch n=5):** `dev_only` clearly strongest. Kruskal-Wallis across conditions H=9.19, p=0.027 (significant). Pairwise Mann-Whitney with Bonferroni (×6): the two interesting pairs, `no_hp` vs `dev_only` and `dev_only` vs `both`, both reach U=1, raw p=0.016, p_bonf=0.095 — the strongest separation n=5 can plausibly produce, still just outside the corrected 0.05 threshold. The n=5 two-sided resolution floor is p=0.0040 (U=0). `no_hp`, `behaviour_only`, `both` are mutually indistinguishable. Ordering matches Williams qualitatively except that online-HP conditions are NOT significantly worse than `no_hp` (Williams found them worse) — candidate discussion point: the detrimental online-HP effect may have been partly a GA-conditioning artefact in Williams's roulette+top-5 setup.
 
-**Still to do (the analysis):**
-- [ ] Best-fitness-per-generation curves, mean with $\pm$1 SD band across runs, individual runs faint behind (Williams Fig. 7.2 equivalent) — read from `history/gen_NNNN.npz`
-- [ ] Final-fitness box plots across conditions, 5 run values overlaid as points, no error band
-- [ ] Significance test on condition differences (n=5, non-parametric: Kruskal-Wallis across conditions then pairwise Mann-Whitney U; report effect sizes and the n=5 resolution floor, not just p-values; decide whether more runs are needed AFTER seeing variance)
-- [ ] Qualitative check: does Williams's ordering hold with our better-conditioned GA?
-- [ ] **Replicate Williams's search observations:** does the plastic-network pattern of quicker early progress and greater run-to-run consistency hold under our GA (Williams Ch.7 results, §8.2.5)? Read off the same curves. (The population-level half of the search analysis is a separate Phase 8 item, 8d.)
+**Top-up decision:** running a second batch (`replication_desktop_extra`, base_seed 104, 5 more runs/condition) on the idle desktop to reach n=10/condition. Resume-tolerant; cost is near zero. Not because the current data is insufficient for the headline (it is sufficient — `dev_only` wins, the other three overlap), but because n=10 cleans up the three-way overlap story and matches Williams's runs-per-condition. Re-run replication_figure.py and search_dynamics.py when it completes; both pick up all runs automatically via the loader.
 
-**Gate:** four-condition fitness plot ready for the report.
+**Done (the analysis):**
+- [x] Best-fitness-per-generation curves, mean with $\pm$1 SD band, individual runs faint — `figs/replication_fitness_curves.pdf`
+- [x] Final-fitness box plots, 5 run points overlaid, no error band — `figs/replication_final_box.pdf`
+- [x] Significance test (Kruskal-Wallis + pairwise Mann-Whitney with Bonferroni and the n=5 floor) — printed summary from replication_figure.py
+- [x] Qualitative check: Williams's ordering holds qualitatively; online-HP-not-worse divergence noted above
+- [x] **Replicate Williams's search observations:** the `dev_only` quicker-early-progress pattern is visible in the search-dynamics figure (steep rise in first ~5 generations); recorded in methods_log §11.4
+- [ ] Figure polish (pending, bundled into one pass after all four analysis scripts exist): zoom y-axes on box plot and curves; show individual runs on the curves; CSV export of per-generation per-condition values
+
+**Note:** the integrity assertion originally added to replication_figure.py (last-gen best == max-over-gens) was removed — it fired for all 20 runs because `best_fitness` in `history/` is the score evaluated that generation under stochastic re-evaluation, so the elitist genotype's *score* can vary even though the genotype is preserved. Elitism is on the genotype, not the re-evaluated score. Not a data problem.
 
 ---
 
@@ -190,14 +193,19 @@ Single variant: freeze established dynamics after settling (Stolting-faithful ad
 - [ ] For each `behaviour_only` and `both` individual: fitness with HP active vs fitness after freezing. Measure the drop.
 - [ ] **Interpretation (Baldwin frame):** large drop → genetic assimilation has *not* occurred, behaviour is HP-dependent. Small drop → assimilation occurred. **(Stolting frame):** large drop is consistent with HP-enabled dynamics being essential to behaviour; small drop is inconsistent with this mechanism.
 
-### 8d. Search-dynamics analysis (analysis of the larger adaptive system)
+### 8d. Search-dynamics analysis (analysis of the larger adaptive system) — DONE (first batch)
 
-Analysis of the search, not the evolved product. All from saved `history/` data (full population fitness array per generation), no re-running. Serves the assignment requirement that an EA project analyse the larger adaptive system. The replication half (early-progress, consistency) lives in Phase 7 results; this is the extension half.
+Analysis of the search, not the evolved product. All from saved `history/` data (full population fitness array per generation), no re-running. Serves the assignment requirement that an EA project analyse the larger adaptive system. The replication half (early-progress, consistency) lives in Phase 7 results; this is the extension half. Script: `scripts/analysis/search_dynamics.py`. Figure: `figs/search_dynamics_population.pdf` (2x2, one panel per condition, shared y-axis; population best, population mean, fitness spread per generation).
 
-- [ ] Population fitness distribution over generations, per condition (best, mean, and spread of the population, not best-only)
-- [ ] A population-diversity measure over generations, per condition
-- [ ] Convergence comparison across conditions: where does the tournament-vs-roulette better-conditioning show, and where does HP change the search trajectory?
-- [ ] **Interpret via search-dynamics framing (not "moving landscape"):** HP changes the genotype-phenotype mapping, smoothing or roughening the search across a fixed landscape. This analysis is the evidence for that discussion point.
+- [x] Population fitness distribution over generations, per condition (best, mean, spread)
+- [x] Diversity measure over generations: population fitness spread (per-generation SD of the 30 fitnesses). NOTE: genotype-based diversity is NOT computable — `history/` saves population fitnesses but not population genotypes. Fitness spread is the deliberate proxy; documented in the script and methods.
+- [x] Convergence comparison: `dev_only` jumps in first ~5 gens then plateaus; others rise gradually over 200 gens; spread collapses to ~0 by gen 10–20 in all conditions
+- [x] **Interpret via search-dynamics framing:** conditions differ in *where* they converge, not whether/how fast. Dev only converges higher. Full interpretation and the Both puzzle in methods_log §11.4 (flagged hypothesis pending 8b/8c)
+- [ ] Re-run when `replication_desktop_extra` completes (n=10) to confirm patterns hold
+
+**Loader + replication figure infrastructure (DONE):**
+- [x] `scripts/analysis/load_runs.py` — shared loader, run discovery, condition resolution (config.json authoritative, manifest disagreement warns), npz reading, grouping. 16 synthetic-fixture tests, 79 total passing. Fix: path normalisation for the cross-machine `_resolve_output_dir` rglob fallback (desktop runs store `/home/mnoug/...` paths; loader patches `experiment_status.EXPERIMENTS_DIR` via realpath — comment in code, do not remove).
+- [x] `scripts/analysis/replication_figure.py` — two PDFs + stats summary (see Phase 7 result above).
 
 **Gate:** four substantive analyses, each producing a publishable-quality figure and a clear empirical claim.
 
