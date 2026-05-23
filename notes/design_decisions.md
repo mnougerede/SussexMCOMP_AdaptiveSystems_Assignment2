@@ -2,7 +2,7 @@
 
 A working document for the methodological choices in the project. Each section states the question, gives the current choice with rationale, and notes anything still open.
 
-The project: replicate Williams (2006) Chapter 7 ball-catching evolvability experiments, plus three new analyses (behavioural trajectories, per-neuron viable-range diagnostics across evolution, frozen-HP test).
+The project: replicate Williams (2006) Chapter 7 ball-catching evolvability experiments, plus four new analyses (behavioural trajectories, per-neuron viable-range diagnostics across evolution, frozen-HP test, and a population-level search-dynamics analysis).
 
 ---
 
@@ -155,7 +155,9 @@ Spelled out so we don't drift back into them:
 
 ---
 
-## Three analyses Williams did not perform (the contribution)
+## Analyses Williams did not perform (the contribution)
+
+Four analyses. Three concern what evolved (behavioural trajectories, per-neuron viable-range diagnostics, frozen-HP test); one concerns how it evolved (search-dynamics analysis). The search-dynamics analysis was added on 22 May after re-reading the assignment specification, which states that an evolutionary-algorithm project must analyse the larger adaptive system, including the EA, the problem space, the fitness function, and the population, and how the search is affected by them. The other three analyses are about the evolved controller and do not by themselves discharge that requirement; the search-dynamics analysis does.
 
 ### Behavioural trajectory analysis
 
@@ -173,16 +175,43 @@ Connection to Baldwin: in conditions with HP, this metric tracks whether evoluti
 
 ### Frozen-HP test (the Stolting et al. test, reframed as an assimilation test)
 
-For each evolved HP-during-behaviour individual, freeze the plasticity parameters at the end of evolution and re-evaluate fitness. Measure the fitness drop relative to the same individual with HP active.
+For each evolved HP-during-behaviour individual (the `behaviour_only` and `both` conditions), let HP run so the controller settles into its behavioural dynamics, freeze the plasticity parameters at their current values, and continue the evaluation with no further plasticity. Measure the fitness drop relative to the same individual evaluated with HP active throughout.
 
-**Why this matters:**
+**What "freeze" means.** Freezing sets $\dot w = \dot b = 0$ from the chosen instant onward, holding the weights and biases at whatever values HP has driven them to. It does *not* reset them to the genotype values. Williams calls this operation adiabatic elimination: a non-plastic CTRNN is instantiated from a plastic one by fixing the plastic variables at a point in time (thesis §6.2.3, "a non-plastic CTRNN can be instantiated from a plastic CTRNN by freezing the plastic variables at any particular point in time"). We use his term in the report.
 
-- *Stolting framing:* Stolting et al. (2023) speculated that HP-during-behaviour evolves limit cycles in the joint network-and-parameter state space, which collapse when HP is frozen. They did not test this on Williams's agent. We do.
-- *Baldwin framing:* a large fitness drop on freezing indicates the population has *not* genetically assimilated the adaptive behaviour — it remains HP-dependent. A small drop indicates assimilation has occurred. Either result is a substantive finding.
+**The freeze point (settled).** The test is faithful to Stolting et al. only if the system has first settled into its behavioural dynamics, then has the mechanism that sustains them removed. Stolting's own procedure is to let HP act for a settling period (500 seconds in their CPG study), then freeze and test for persistence of the behaviour (Stolting et al. 2023, p. 4). We follow this:
 
-**Control for the comparison:** HP-during-development individuals already had HP frozen during their fitness trials, so they are not a valid noise control. Instead, re-evaluate each HP-during-behaviour individual multiple times with different shape sequences (different trial seeds) to estimate within-individual fitness variance. The freezing effect is significant if it exceeds this baseline noise.
+- **`both`:** run the full 6000-timestep developmental phase, then run into the trial, then freeze. The natural settling point is the end of the developmental phase; freezing there is the primary variant.
+- **`behaviour_only`:** there is no developmental phase, so HP runs from the genotype during the trial. Allow a settling window into the trial, then freeze for the remainder. State the window length and confirm the result is not knife-edge sensitive to it.
+
+**Controls (noise floor).** Re-evaluate each `dev_only` and `no_hp` individual under the identical freeze-and-continue procedure. Both ran with HP off during their behaviour already, so the freeze should produce approximately zero fitness change. A non-trivial drop in either control is a bug signal, not a result, and is checked before any `behaviour_only`/`both` drop is interpreted.
+
+**Within-individual variance baseline.** The drop for a single individual is only meaningful against the noise of fitness evaluation itself. Re-evaluate each individual N times with different shape-sequence seeds, HP active, to estimate within-individual fitness variance. The freezing effect is significant if it exceeds this baseline.
+
+**Interpretation.**
+
+- *Stolting framing:* a large drop is consistent with the behaviour depending on ongoing HP dynamics (Stolting's HP-enabled limit cycles, here in the joint network-and-parameter state space); a small drop is inconsistent with that mechanism.
+- *Baldwin framing:* a large drop indicates the population has *not* genetically assimilated the adaptive behaviour, it remains HP-dependent; a small drop indicates assimilation has occurred. Either result is a substantive finding.
 
 This is the project's clearest single scientific question.
+
+**Why this is a single test, not a sweep.** An earlier plan considered a second variant that freezes from the genotype (HP never allowed to act), reading "is the bare genotype competent?" as a separate assimilation measure. We do not run this as a primary analysis. The genotype reading is largely already available from the evolutionary conditions: a `behaviour_only` genotype evaluated with HP entirely off is close to evaluating that genotype as a `no_hp` agent, so comparing final fitness across the four evolved conditions already carries most of the innate-competence signal. Adding a separate genotype-freeze sweep would duplicate that information and dilute the report's focus, which the assignment specification asks us to keep on one or two main points. The genotype/assimilation reading is therefore handled in discussion by relating the frozen-HP drop to the cross-condition comparison, not by a parallel freeze analysis. The genotype-freeze variant survives only as an optional extension (Phase 9) if we find we have too little to discuss, which a 3000-word report plus methods makes unlikely.
+
+**Novelty check (verified against the sources).** Williams's Chapter 7 has four experiments: comparative HP schemes during behaviour, the developmental-period experiment (which is our `dev_only` condition, evolved under HP-then-frozen), a comparison with centre-crossing networks, and larger non-plastic networks. None of them takes online-HP-evolved individuals and freezes HP post-hoc to measure a drop. The frozen-HP test on Williams's ball-catching agent is therefore genuinely new, as the proposal claims.
+
+### Search-dynamics analysis (analysis of the larger adaptive system)
+
+The other three analyses examine the evolved controller. This one examines the search that produced it: how the population moves through the space across generations, and how HP changes that movement. All of it is computed from data already saved (`history/gen_NNNN.npz` holds the full population fitness array per generation, not only the best), so no re-running is required.
+
+The material splits cleanly along the replicate/extend line, and the report places the two halves in different sections accordingly.
+
+- **Replication half (belongs with the Phase 7 replication results).** Williams reports that plastic networks show quicker progress early in the evolutionary run and greater consistency in reaching a reasonable level of performance, even though they are eventually out-performed (thesis Chapter 7 results and §8.2.5). These are claims about the search, and reproducing them is part of replicating Williams. The best-fitness-per-generation curves with their across-run spread, read for early-generation progress and run-to-run consistency, test whether this pattern holds under our better-conditioned GA.
+
+- **Extension half (a distinct Phase 8 analysis).** Williams reports best-fitness only, not population-level behaviour. Plotting the population fitness distribution and a diversity measure over generations, per condition, is something he did not do. This is where the better-conditioned GA claim becomes visible (tournament versus roulette-plus-top-5) and where the "HP changes search dynamics across a fixed landscape" framing gets its evidence rather than remaining an assertion.
+
+**Why this matters:** the assignment specification is explicit that an EA project's analyses should focus on the larger adaptive system, naming the EA, the problem space, the fitness function, the population, and the fitness landscapes they codetermine. Without this analysis the search-dynamics discussion point has no result behind it; with it, the report covers both axes an EA project is expected to cover, what evolved and how.
+
+**Implementation note:** the replication-versus-extension split is a presentation boundary, not a data boundary. Both halves read the same `history/` arrays, so in code this is most likely one data-loading layer feeding two figures, and probably the same Claude Code pass that produces the Phase 7 replication figure. The split governs where results live in the report, not how many things get built.
 
 ---
 
@@ -195,6 +224,16 @@ Full Williams-scale experiment: 4 conditions × 10 runs × 500 generations × 50
 Scaled-down fallback: 4 × 5 × 300 × 30 = 180,000 evaluations ≈ 15 hours single-threaded.
 
 **Plan:** measure single-threaded timing during the GA baseline check. Decide between Williams-scale and scaled-down based on what the timing shows. Parallelise across cores in either case if it's a clean win.
+
+---
+
+## Results presentation: SD on curves, points on the final comparison
+
+**Decision:** On the per-generation fitness curves, show the mean across the 5 runs with a shaded band of $\pm 1$ standard deviation, and overlay the individual run curves faintly. On the final-fitness comparison, show a box plot with all 5 run values overlaid as points, and no error band.
+
+**Reasoning:** Standard deviation describes the run-to-run spread of the data and does not shrink with sample size; standard error of the mean (SD/$\sqrt n$) describes the precision of the mean estimate and is roughly half the width of the SD band at $n = 5$. An SEM band on five highly variable runs would visually imply a separation between conditions that the raw points do not support. SD is the honest summary of variability here. For the final comparison, with only five runs per condition, the most honest display is the five points themselves; a summary band is precision the sample does not earn. State "mean $\pm$ 1 SD across 5 runs" in the curve caption.
+
+**Note:** a $\pm$ symbol in a figure caption broke section parsing in the Assignment 1 word count (interpreted as a display-math delimiter). Watch for this when finalising captions.
 
 ---
 

@@ -9,7 +9,7 @@ Two other assignments running in parallel. This is the live to-do list — re-ch
 
 ## Project shape
 
-**Headline:** Replicate Williams (2006) Chapter 7 ball-catching evolvability experiments. Extend with three analyses Williams did not perform: behavioural trajectory inspection, per-neuron viable-range diagnostics across evolution, and a frozen-HP test on HP-during-behaviour individuals (testing whether genetic assimilation has occurred, and the Stolting et al. 2023 HP-enabled-oscillation hypothesis as a candidate mechanism).
+**Headline:** Replicate Williams (2006) Chapter 7 ball-catching evolvability experiments. Extend with analyses Williams did not perform: three of the evolved controller (behavioural trajectory inspection, per-neuron viable-range diagnostics across evolution, and a frozen-HP test on HP-during-behaviour individuals testing whether genetic assimilation has occurred, with the Stolting et al. 2023 HP-enabled-oscillation hypothesis as a candidate mechanism) and one of the search itself (population-level search-dynamics analysis, the larger adaptive system the assignment requires an EA project to examine).
 
 **Framing (post Chris's feedback, 16 May):**
 - Project framed primarily via the Baldwin effect: lifetime adaptation (HP) can guide evolution and lead to genetic assimilation. The frozen-HP test asks whether assimilation has occurred.
@@ -153,16 +153,19 @@ Four conditions: `no_hp`, `dev_only`, `behaviour_only`, `both`. 5 runs each, 20 
 Preliminary read (NOT yet plotted or tested): `dev_only` clearly best, consistent with Williams. `both` looks lowest, possibly below `no_hp` — online HP may interfere with the developmental benefit. High within-condition variance; needs proper statistics before any claim.
 
 **Still to do (the analysis):**
-- [ ] Best-fitness-per-generation curves with error bands across runs (Williams Fig. 7.2 equivalent) — read from `history/gen_NNNN.npz`
-- [ ] Final-fitness box plots across conditions
-- [ ] Significance test on condition differences (n=5; decide whether more runs are needed AFTER seeing variance)
+- [ ] Best-fitness-per-generation curves, mean with $\pm$1 SD band across runs, individual runs faint behind (Williams Fig. 7.2 equivalent) — read from `history/gen_NNNN.npz`
+- [ ] Final-fitness box plots across conditions, 5 run values overlaid as points, no error band
+- [ ] Significance test on condition differences (n=5, non-parametric: Kruskal-Wallis across conditions then pairwise Mann-Whitney U; report effect sizes and the n=5 resolution floor, not just p-values; decide whether more runs are needed AFTER seeing variance)
 - [ ] Qualitative check: does Williams's ordering hold with our better-conditioned GA?
+- [ ] **Replicate Williams's search observations:** does the plastic-network pattern of quicker early progress and greater run-to-run consistency hold under our GA (Williams Ch.7 results, §8.2.5)? Read off the same curves. (The population-level half of the search analysis is a separate Phase 8 item, 8d.)
 
 **Gate:** four-condition fitness plot ready for the report.
 
 ---
 
-## Phase 8 — Three analyses Williams did not perform (Milestone — the contribution)
+## Phase 8 — Analyses Williams did not perform (Milestone — the contribution)
+
+Three analyses of what evolved (8a trajectories, 8b viable-range, 8c frozen-HP) and one of how it evolved (8d search dynamics).
 
 ### 8a. Behavioural trajectory analysis
 
@@ -178,14 +181,25 @@ Preliminary read (NOT yet plotted or tested): `dev_only` clearly best, consisten
 
 ### 8c. Frozen-HP test (assimilation test)
 
-- [ ] **Control design.** Re-evaluate each HP-during-behaviour individual N times with different shape sequences to estimate within-individual fitness variance. This is the noise floor.
-- [ ] For each evolved HP-during-behaviour individual, take final $(w, b)$
-- [ ] Re-run fitness evaluation with HP frozen at that point
-- [ ] Measure fitness drop relative to the same individual's evaluation with HP active
-- [ ] Test significance against the within-individual variance baseline
-- [ ] **Interpretation (Baldwin frame):** large drop → genetic assimilation has *not* occurred. Small drop → assimilation occurred. **(Stolting frame):** large drop is consistent with HP-enabled limit cycles being essential to behaviour; small drop is inconsistent with this mechanism.
+Single variant: freeze established dynamics after settling (Stolting-faithful adiabatic elimination), not freeze-from-genotype. Genotype-freeze variant demoted to Phase 9 optional; the genotype/innate-competence reading comes from the cross-condition comparison instead.
 
-**Gate:** three substantive analyses, each producing a publishable-quality figure and a clear empirical claim.
+- [ ] **Freeze semantics:** set $\dot w = \dot b = 0$ from the freeze point, holding $(w,b)$ at HP-driven values. Do NOT reset to genotype. Williams's term: adiabatic elimination.
+- [ ] **Freeze point.** `both`: run developmental phase, run into trial, freeze at end of developmental phase (primary). `behaviour_only`: no developmental phase, so allow a settling window into the trial then freeze; state window length, confirm not knife-edge sensitive.
+- [ ] **Within-individual variance baseline.** Re-evaluate each individual N times with different shape-sequence seeds, HP active, to estimate fitness noise. The drop is significant only if it exceeds this.
+- [ ] **Controls (noise floor).** Re-evaluate `dev_only` and `no_hp` individuals under the identical freeze-and-continue procedure. Both behaved with HP off already, so the drop must be ~0. A non-trivial drop in either is a BUG signal, checked before interpreting any `behaviour_only`/`both` drop.
+- [ ] For each `behaviour_only` and `both` individual: fitness with HP active vs fitness after freezing. Measure the drop.
+- [ ] **Interpretation (Baldwin frame):** large drop → genetic assimilation has *not* occurred, behaviour is HP-dependent. Small drop → assimilation occurred. **(Stolting frame):** large drop is consistent with HP-enabled dynamics being essential to behaviour; small drop is inconsistent with this mechanism.
+
+### 8d. Search-dynamics analysis (analysis of the larger adaptive system)
+
+Analysis of the search, not the evolved product. All from saved `history/` data (full population fitness array per generation), no re-running. Serves the assignment requirement that an EA project analyse the larger adaptive system. The replication half (early-progress, consistency) lives in Phase 7 results; this is the extension half.
+
+- [ ] Population fitness distribution over generations, per condition (best, mean, and spread of the population, not best-only)
+- [ ] A population-diversity measure over generations, per condition
+- [ ] Convergence comparison across conditions: where does the tournament-vs-roulette better-conditioning show, and where does HP change the search trajectory?
+- [ ] **Interpret via search-dynamics framing (not "moving landscape"):** HP changes the genotype-phenotype mapping, smoothing or roughening the search across a fixed landscape. This analysis is the evidence for that discussion point.
+
+**Gate:** four substantive analyses, each producing a publishable-quality figure and a clear empirical claim.
 
 ---
 
@@ -194,6 +208,7 @@ Preliminary read (NOT yet plotted or tested): `dev_only` clearly best, consisten
 If everything above completes ahead of schedule. Pick at most one.
 
 - [ ] Oscillation analysis on HP-during-behaviour individuals (Stolting-style)
+- [ ] Genotype-freeze variant of the frozen-HP test (freeze from genotype, HP never acts; the innate-competence reading). Only if we find we have too little to discuss; the cross-condition comparison already carries most of this signal.
 - [ ] Vary $\tau_w, \tau_b$ on HP-during-behaviour (Stolting timescale-separation test)
 - [ ] Run a comparison with Williams's exact GA to isolate GA effects from HP effects
 
@@ -212,10 +227,12 @@ Order: methods polish → results → analyses → discussion → introduction �
 ### Results
 
 - [ ] Substrate-level sanity check figure (from Phase 4)
-- [ ] Williams replication: four-condition fitness curves with error bands; final-fitness box plots
+- [ ] Williams replication: four-condition fitness curves (mean $\pm$1 SD, individual runs faint); final-fitness box plots with run points overlaid, no error band
+- [ ] Search replication: early-progress and run-to-run consistency read off the replication curves (Phase 7)
 - [ ] Trajectory examples per condition with neural state alongside (Phase 8a)
 - [ ] Per-neuron viable-range diagnostics across evolution (Phase 8b)
 - [ ] Frozen-HP test: fitness-before-and-after-freezing per individual, per condition (Phase 8c)
+- [ ] Search-dynamics: population fitness distribution and diversity over generations, per condition (Phase 8d)
 
 ### Analyses
 
@@ -223,6 +240,7 @@ Order: methods polish → results → analyses → discussion → introduction �
 - [ ] Quantitative test: significance of the frozen-HP fitness drop
 - [ ] Connection between substrate-level and evolutionary results via the viable-range diagnostics
 - [ ] Failure-mode notes within HP-during-behaviour
+- [ ] Search-dynamics analysis: how HP and the GA shape the search across a fixed landscape (the larger adaptive system the assignment asks for)
 
 ### Discussion (pre-planned threads)
 
@@ -242,7 +260,7 @@ Order: methods polish → results → analyses → discussion → introduction �
 - [ ] HP background — biological (Turrigiano) and computational (Williams & Noble)
 - [ ] Substrate-vs-evolvability tension as motivating question
 - [ ] **Baldwin-effect framing** with key citations
-- [ ] State the project's contribution: replication + three new analyses + frozen-HP/assimilation test
+- [ ] State the project's contribution: replication + four new analyses (three of the evolved controller, one of the search) including the frozen-HP/assimilation test
 
 ### Final polish
 
