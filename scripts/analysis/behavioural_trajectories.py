@@ -25,7 +25,6 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
 from matplotlib.lines import Line2D
 import numpy as np
 
@@ -36,6 +35,7 @@ from experiments.config import Condition, run_config_from_json  # noqa: F401 –
 from plasticity.hp import HP
 
 from load_runs import CONDITION_LABELS, CONDITION_ORDER, runs_by_condition
+from plot_utils import FIRING_RATE_CMAP, H_L, H_U
 
 _REPO_ROOT = Path(os.path.realpath(__file__)).parent.parent.parent
 FIGS_DIR = _REPO_ROOT / "figs"
@@ -52,8 +52,6 @@ _CONDITION_TO_HP_MODE: dict[str, str] = {
 N_TRIALS    = 3
 SHARED_SEED = 42
 N_SHAPES    = 20
-H_L         = 0.2
-H_U         = 0.8
 
 _COND_COLOURS = dict(zip(CONDITION_ORDER, ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]))
 
@@ -65,21 +63,6 @@ _NEURON_YTICK_LABELS = [
     "Left motor",
     "Rgt motor",
 ]
-
-# Custom diverging colormap: deep blue below H_L, light neutral in viable range,
-# deep red above H_U. Step-like transitions keep the three zones visually sharp.
-# Luminance profile is dark–light–dark so the structure survives greyscale printing.
-_HP_CMAP = mcolors.LinearSegmentedColormap.from_list(
-    "hp_activity",
-    [
-        (0.000, "#1A4F8A"),   # deep blue  — under-activity
-        (0.199, "#1A4F8A"),   # deep blue  — holds to H_L boundary
-        (0.200, "#F0EFE8"),   # light cream — start of viable range
-        (0.800, "#F0EFE8"),   # light cream — end of viable range
-        (0.801, "#A61C22"),   # deep red   — start of over-activity
-        (1.000, "#A61C22"),   # deep red   — holds to top
-    ],
-)
 
 
 # ── Helper: locate best_per_gen file ─────────────────────────────────────────
@@ -194,7 +177,7 @@ def _fill_cell(
         aspect="auto",
         origin="upper",
         vmin=0, vmax=1,
-        cmap=_HP_CMAP,
+        cmap=FIRING_RATE_CMAP,
         interpolation="nearest",
         extent=extent,
     )
