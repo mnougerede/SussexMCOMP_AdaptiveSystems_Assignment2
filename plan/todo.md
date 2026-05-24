@@ -170,17 +170,24 @@ Four conditions: `no_hp`, `dev_only`, `behaviour_only`, `both`. 5 runs each, 20 
 
 Three analyses of what evolved (8a trajectories, 8b viable-range, 8c frozen-HP) and one of how it evolved (8d search dynamics).
 
-### 8a. Behavioural trajectory analysis
+### 8a. Behavioural trajectory analysis — DONE
 
-- [ ] Pick representative individuals per condition (best-of-best, median-of-best, worst-of-best)
-- [ ] Plot agent $x$ and shape $(x, y)$ over time across a small number of trials, neural state alongside
-- [ ] Compare qualitatively across conditions; connect to per-neuron diagnostics
+Script: `scripts/analysis/behavioural_trajectories.py`. Figure: `figs/behavioural_trajectories.pdf` (4 conditions × 3 shared-seed trials; upper panel agent/shape x with shape-boundary dividers, lower panel 5-neuron firing-rate heatmap with blue=below H_L, cream=in [H_L,H_U], red=above H_U). Reproducibility record: `figs/behavioural_trajectories_summary.txt` (selected run, seed, fitness, shape_inits per trial).
+
+- [x] One representative per condition (best-of-best by final-gen fitness). Median/worst available by changing selection if needed; not plotted to keep the figure readable.
+- [x] Agent x and shape x over time, neural-state heatmap alongside, 3 shared-seed (seed 42) trials for direct comparison
+- [x] Qualitative findings recorded in methods_log §11.4: No HP sustained-saturated; Dev only bands through range (HP frozen in behaviour but developmental phase shaped sweeping dynamics); Behaviour only mostly in-range with per-neuron heterogeneity (right sensor bands); Both wider banding, more in-range time than No HP/Dev only. Motivates the two 8b metrics below.
+- [ ] Report: extract 2–4 representative panels (likely Dev only vs Behaviour only heatmaps) rather than the full 24-panel figure; caption to state blue/cream/red meaning. (Writing-phase task.)
 
 ### 8b. Per-neuron viable-range diagnostics across evolution
 
-- [ ] For each generation, sample the best individual; replay a representative trial; record per neuron the fraction of timesteps firing rate in $[H_L, H_U]$
-- [ ] Plot fraction over generations, per condition
-- [ ] **Interpret via Baldwin frame:** does the in-range fraction in non-HP networks rise over generations (evolution discovering what HP would have enforced)? Does the HP-during-behaviour viable-range fraction depend on HP being active?
+Two metrics, both motivated by the 8a figure. Fraction-in-range alone cannot distinguish a neuron parked in range from one sweeping through it (the No HP vs Dev only distinction), so the banding metric is required, not optional.
+
+- [ ] **Fraction-in-range:** for each saved generation's best individual, replay a representative trial; record per neuron the fraction of timesteps firing rate in $[H_L, H_U]$
+- [ ] **Band-crossing rate:** for the same replay, per neuron, count transitions between the above-range state ($z > H_U$) and the below-range state ($z < H_L$) per unit time (the "banding" seen in 8a). Captures sweeping-through vs parked-at-a-rail, which fraction-in-range misses.
+- [ ] Plot both over generations, per condition (fraction-in-range and crossing-rate as separate panels or twin axes)
+- [ ] **Interpret via Baldwin frame:** does the in-range fraction in non-HP networks rise over generations (evolution discovering what HP would have enforced)? Does the HP-during-behaviour viable-range fraction depend on HP being active? Does the crossing-rate distinguish the developmental conditions (banding) from No HP (sustained saturation)?
+- [ ] **Replay HP-mode decision (to settle when writing the 8b prompt):** the diagnostic must specify whether the per-generation replay runs with HP in the run's own training mode or with HP off. Running in training mode measures the neurons as they actually behaved during evolution; running HP-off measures the innate (genotype-only) dynamics and connects to the assimilation question. Likely want both, or be explicit about which. Decide at prompt time.
 
 ### 8c. Frozen-HP test (assimilation test)
 
