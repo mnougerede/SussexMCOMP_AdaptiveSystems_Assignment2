@@ -12,8 +12,9 @@ At each timestep each neuron is classified as:
 
 Outputs:
   figs/viable_range_diagnostics.npz   – all metrics as labelled arrays
-  figs/viable_range_states.pdf        – state-fraction evolution across gens
+  figs/viable_range_states.pdf        – state-fraction evolution (5×4 grid)
   figs/viable_range_dwell.pdf         – viable-state dwell-time evolution
+  figs/viable_range_transitions.pdf   – entry-exit rate evolution
 
 Run from repo root:
     uv run python scripts/analysis/viable_range_diagnostics.py
@@ -39,7 +40,14 @@ from environment.trial import run_trial
 from experiments.config import Condition, run_config_from_json  # noqa: F401
 from plasticity.hp import HP
 
-from load_runs import CONDITION_LABELS, CONDITION_ORDER, runs_by_condition
+from load_runs import runs_by_condition
+from plot_utils import (
+    COLOR_OVER, COLOR_UNDER, COLOR_VIABLE,
+    CONDITION_LABELS, CONDITION_ORDER,
+    FIRING_RATE_CMAP,  # noqa: F401 – exported for callers
+    H_L, H_U,
+    NEURON_LABELS,
+)
 
 _REPO_ROOT = Path(os.path.realpath(__file__)).parent.parent.parent
 FIGS_DIR   = _REPO_ROOT / "figs"
@@ -53,8 +61,6 @@ _CONDITION_TO_HP_MODE: dict[str, str] = {
     "HP_BOTH":            "both",
 }
 
-H_L           = 0.2
-H_U           = 0.8
 SAMPLE_STEP   = 10
 SHARED_SEED   = 42
 N_SHAPES      = 20
@@ -63,10 +69,10 @@ MODE_TRAINING = 0   # index for the run's own training HP-mode
 MODE_HP_OFF   = 1   # index for hp_mode='none'
 N_MODES       = 2
 
-_NEURON_LABELS  = [
-    "Left sensor", "Centre sensor", "Right sensor", "Left motor", "Right motor",
-]
-_NEURON_COLOURS = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"]
+# Line style / colour for each HP mode
+_MODE_LS    = ["-",  "--"]
+_MODE_COLOR = ["#1d3f5e", "#7a9fbc"]   # dark navy (training), mid-blue (HP-off)
+_MODE_LABEL = ["Training mode", "HP-off"]
 
 
 def _ts() -> str:
@@ -240,247 +246,305 @@ def collect_data(grouped: dict) -> dict:
     )
 
 
+# ── Derived metric ─────────────────────────────────────────────────────────────
+
+def compute_entry_exit_rate(trans: np.ndarray) -> np.ndarray:
+    """Mean of V→U, V→O, U→V, O→V rates per 1000 timesteps.
+
+    trans shape: (..., 3, 3), state indices 0=U 1=V 2=O.
+    Output shape: trans.shape[:-2].
+    """
+    return np.nanmean(
+        np.stack([
+            trans[..., 1, 0],   # V → U
+            trans[..., 1, 2],   # V → O
+            trans[..., 0, 1],   # U → V
+            trans[..., 2, 1],   # O → V
+        ], axis=-1),
+        axis=-1,
+    )
+
+
 # ── Figure helpers ─────────────────────────────────────────────────────────────
 
-def _panel_states(
-    ax,
-    fU_cr: np.ndarray,   # (n_runs, n_gens, N_NEURONS)
-    fV_cr: np.ndarray,
-    fO_cr: np.ndarray,
-    sgi: np.ndarray,
-    title: str,
-    show_ylabel: bool,
-    show_xlabel: bool,
-) -> None:
-    """Fill one panel of the state-fraction figure."""
-    for n in range(N_NEURONS):
-        col    = _NEURON_COLOURS[n]
-        mean_V = np.nanmean(fV_cr[:, :, n], axis=0)         # (n_gens,)
-        std_V  = np.nanstd (fV_cr[:, :, n], axis=0, ddof=1)
-        mean_U = np.nanmean(fU_cr[:, :, n], axis=0)
-        mean_O = np.nanmean(fO_cr[:, :, n], axis=0)
-
-        ax.fill_between(sgi, mean_V - std_V, mean_V + std_V,
-                        color=col, alpha=0.12)
-        ax.plot(sgi, mean_V, color=col, lw=1.2,  ls="-",  label=_NEURON_LABELS[n])
-        ax.plot(sgi, mean_U, color=col, lw=0.65, ls="--", alpha=0.55)
-        ax.plot(sgi, mean_O, color=col, lw=0.65, ls=":",  alpha=0.55)
-
-    ax.set_ylim(0, 1)
+def _apply_panel_style(ax: plt.Axes, sgi: np.ndarray) -> None:
     ax.set_xlim(int(sgi[0]), int(sgi[-1]))
-    ax.set_title(title, fontsize=8.5, fontweight="bold")
     ax.tick_params(labelsize=7)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    if show_ylabel:
-        ax.set_ylabel("State fraction", fontsize=8)
-    if show_xlabel:
-        ax.set_xlabel("Generation", fontsize=8)
 
 
-def _panel_dwell(
-    ax,
-    dV_cr: np.ndarray,   # (n_runs, n_gens, N_NEURONS)
-    sgi: np.ndarray,
-    title: str,
-    show_ylabel: bool,
-    show_xlabel: bool,
+def _add_grid_labels(
+    fig: plt.Figure,
+    axes: np.ndarray,
+    row_labels: list[str],
+    col_labels: list[str],
+    row_ylabel: str,
 ) -> None:
-    """Fill one panel of the viable-state dwell-time figure."""
-    # SD band: across-run variation of the mean-neuron dwell time
-    per_run_mean = np.nanmean(dV_cr, axis=2)             # (n_runs, n_gens)
-    band_mean    = np.nanmean(per_run_mean, axis=0)       # (n_gens,)
-    band_std     = np.nanstd (per_run_mean, axis=0, ddof=1)
-    ax.fill_between(sgi, band_mean - band_std, band_mean + band_std,
-                    color="grey", alpha=0.18, zorder=1, label="Mean neuron ±1 SD")
-
-    for n in range(N_NEURONS):
-        mean_n = np.nanmean(dV_cr[:, :, n], axis=0)      # (n_gens,)
-        ax.plot(sgi, mean_n, color=_NEURON_COLOURS[n], lw=1.2, zorder=2,
-                label=_NEURON_LABELS[n])
-
-    ax.set_xlim(int(sgi[0]), int(sgi[-1]))
-    ax.set_title(title, fontsize=8.5, fontweight="bold")
-    ax.tick_params(labelsize=7)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    if show_ylabel:
-        ax.set_ylabel("Mean dwell time (steps)", fontsize=8)
-    if show_xlabel:
-        ax.set_xlabel("Generation", fontsize=8)
+    """Set column titles and row ylabel annotations on a 5×4 axes grid."""
+    n_rows, n_cols = axes.shape
+    for ci in range(n_cols):
+        axes[0, ci].set_title(col_labels[ci], fontsize=9, fontweight="bold", pad=5)
+    for ni in range(n_rows):
+        axes[ni, 0].set_ylabel(
+            f"{row_labels[ni]}\n{row_ylabel}",
+            fontsize=7.5, fontweight="bold", labelpad=8,
+        )
+    for ni in range(n_rows):
+        axes[ni, -1].yaxis.set_tick_params(labelright=False)
+    for ni in range(n_rows - 1):
+        for ci in range(n_cols):
+            axes[ni, ci].tick_params(axis="x", labelbottom=False)
+    for ci in range(n_cols):
+        axes[-1, ci].set_xlabel("Generation", fontsize=8)
 
 
-def _shared_states_legend(fig) -> None:
-    neuron_handles = [
-        Line2D([0], [0], color=_NEURON_COLOURS[n], lw=1.2, label=_NEURON_LABELS[n])
-        for n in range(N_NEURONS)
-    ]
-    style_handles = [
-        Line2D([0], [0], color="grey", lw=1.2,  ls="-",  label="V viable (mean ±1 SD)"),
-        Line2D([0], [0], color="grey", lw=0.65, ls="--", alpha=0.7, label="U under-active"),
-        Line2D([0], [0], color="grey", lw=0.65, ls=":",  alpha=0.7, label="O over-active"),
-    ]
-    fig.legend(
-        handles=neuron_handles + style_handles,
-        loc="lower center", ncol=8, fontsize=7.5,
-        frameon=False, bbox_to_anchor=(0.5, 0.0),
+# ── Figure 1: state fractions ──────────────────────────────────────────────────
+
+def build_states_figure(data: dict) -> plt.Figure:
+    """5×4 grid: three state fractions across generations, both HP-modes per panel."""
+    sgi = data["sampled_gen_indices"]
+    fU, fV, fO = data["frac_U"], data["frac_V"], data["frac_O"]
+
+    fig, axes = plt.subplots(
+        N_NEURONS, len(CONDITION_ORDER),
+        figsize=(15, 13),
+        sharex=True, sharey="row",
+        squeeze=False,
+    )
+    fig.patch.set_facecolor("white")
+
+    for ni in range(N_NEURONS):
+        for ci, cond in enumerate(CONDITION_ORDER):
+            ax = axes[ni, ci]
+            for mi in range(N_MODES):
+                ls = _MODE_LS[mi]
+
+                mean_V = np.nanmean(fV[ci, :, :, ni, mi], axis=0)
+                std_V  = np.nanstd (fV[ci, :, :, ni, mi], axis=0, ddof=1)
+                mean_U = np.nanmean(fU[ci, :, :, ni, mi], axis=0)
+                mean_O = np.nanmean(fO[ci, :, :, ni, mi], axis=0)
+
+                ax.fill_between(sgi, mean_V - std_V, mean_V + std_V,
+                                color=COLOR_VIABLE, alpha=0.20, zorder=1)
+                ax.plot(sgi, mean_V, color=COLOR_VIABLE, lw=1.5, ls=ls, zorder=2)
+                ax.plot(sgi, mean_U, color=COLOR_UNDER,  lw=1.1, ls=ls, zorder=2)
+                ax.plot(sgi, mean_O, color=COLOR_OVER,   lw=1.1, ls=ls, zorder=2)
+
+            ax.set_ylim(0, 1)
+            _apply_panel_style(ax, sgi)
+
+    _add_grid_labels(
+        fig, axes,
+        row_labels=NEURON_LABELS,
+        col_labels=[CONDITION_LABELS[c] for c in CONDITION_ORDER],
+        row_ylabel="State fraction",
     )
 
-
-def _shared_dwell_legend(fig) -> None:
+    # Shared legend
     handles = [
-        Line2D([0], [0], color=_NEURON_COLOURS[n], lw=1.2, label=_NEURON_LABELS[n])
-        for n in range(N_NEURONS)
+        Line2D([0], [0], color=COLOR_VIABLE, lw=1.5, ls="-",  label="V viable"),
+        Line2D([0], [0], color=COLOR_UNDER,  lw=1.1, ls="-",  label="U under-active"),
+        Line2D([0], [0], color=COLOR_OVER,   lw=1.1, ls="-",  label="O over-active"),
+        Line2D([0], [0], color="grey", lw=1.2, ls="-",  label="Training mode (solid)"),
+        Line2D([0], [0], color="grey", lw=1.2, ls="--", label="HP-off (dashed)"),
+        Line2D([0], [0], color=COLOR_VIABLE, lw=8, alpha=0.25, label="V ±1 SD"),
     ]
-    handles.append(
-        Line2D([0], [0], color="grey", lw=8, alpha=0.25, label="Mean neuron ±1 SD")
-    )
     fig.legend(
         handles=handles,
         loc="lower center", ncol=6, fontsize=7.5,
         frameon=False, bbox_to_anchor=(0.5, 0.0),
     )
-
-
-def build_states_figure(data: dict) -> plt.Figure:
-    """Figure 1: three-state fraction evolution across generations (2 rows × 4 cols)."""
-    sgi = data["sampled_gen_indices"]
-    fU, fV, fO = data["frac_U"], data["frac_V"], data["frac_O"]
-
-    fig, axes = plt.subplots(
-        2, 4, figsize=(16, 8),
-        sharex=True, sharey=True,
-    )
-    fig.patch.set_facecolor("white")
-
-    for mi, (mode_idx, row_label) in enumerate([
-        (MODE_TRAINING, "Training mode"),
-        (MODE_HP_OFF,   "HP off"),
-    ]):
-        for ci, cond in enumerate(CONDITION_ORDER):
-            t_mode = _CONDITION_TO_HP_MODE[cond]
-            if mode_idx == MODE_TRAINING:
-                mode_str = f"hp_mode='{t_mode}'"
-            else:
-                mode_str = "hp_mode='none'"
-            title = f"{CONDITION_LABELS[cond]}\n[{mode_str}]"
-
-            _panel_states(
-                axes[mi, ci],
-                fU[ci, :, :, :, mode_idx],
-                fV[ci, :, :, :, mode_idx],
-                fO[ci, :, :, :, mode_idx],
-                sgi, title,
-                show_ylabel=(ci == 0),
-                show_xlabel=(mi == 1),
-            )
-
-    _shared_states_legend(fig)
-    fig.tight_layout(rect=[0, 0.07, 1, 1])
+    fig.tight_layout(rect=[0, 0.06, 1, 1])
     return fig
 
 
+# ── Figure 2: viable-state dwell time ─────────────────────────────────────────
+
 def build_dwell_figure(data: dict) -> plt.Figure:
-    """Figure 2: viable-state dwell-time evolution (2 rows × 4 cols)."""
+    """5×4 grid: median viable-state dwell time across generations, IQR band."""
     sgi = data["sampled_gen_indices"]
     dV  = data["dwell_V"]
 
     fig, axes = plt.subplots(
-        2, 4, figsize=(16, 8),
-        sharex=True,
+        N_NEURONS, len(CONDITION_ORDER),
+        figsize=(15, 13),
+        sharex=True, sharey="row",
+        squeeze=False,
     )
     fig.patch.set_facecolor("white")
 
-    for mi, (mode_idx, row_label) in enumerate([
-        (MODE_TRAINING, "Training mode"),
-        (MODE_HP_OFF,   "HP off"),
-    ]):
+    for ni in range(N_NEURONS):
         for ci, cond in enumerate(CONDITION_ORDER):
-            t_mode = _CONDITION_TO_HP_MODE[cond]
-            if mode_idx == MODE_TRAINING:
-                mode_str = f"hp_mode='{t_mode}'"
-            else:
-                mode_str = "hp_mode='none'"
-            title = f"{CONDITION_LABELS[cond]}\n[{mode_str}]"
+            ax = axes[ni, ci]
+            for mi in range(N_MODES):
+                ls    = _MODE_LS[mi]
+                color = _MODE_COLOR[mi]
+                panel = dV[ci, :, :, ni, mi]            # (n_runs, n_gens)
 
-            _panel_dwell(
-                axes[mi, ci],
-                dV[ci, :, :, :, mode_idx],
-                sgi, title,
-                show_ylabel=(ci == 0),
-                show_xlabel=(mi == 1),
-            )
+                med = np.nanmedian(panel, axis=0)
+                q25 = np.nanpercentile(panel, 25, axis=0)
+                q75 = np.nanpercentile(panel, 75, axis=0)
 
-    _shared_dwell_legend(fig)
-    fig.tight_layout(rect=[0, 0.07, 1, 1])
+                ax.fill_between(sgi, q25, q75, color=color, alpha=0.15, zorder=1)
+                ax.plot(sgi, med, color=color, lw=1.3, ls=ls, zorder=2,
+                        label=_MODE_LABEL[mi])
+
+            ax.set_ylim(bottom=0)
+            _apply_panel_style(ax, sgi)
+
+    _add_grid_labels(
+        fig, axes,
+        row_labels=NEURON_LABELS,
+        col_labels=[CONDITION_LABELS[c] for c in CONDITION_ORDER],
+        row_ylabel="Dwell time (steps)",
+    )
+
+    handles = [
+        Line2D([0], [0], color=_MODE_COLOR[0], lw=1.3, ls="-",  label="Training mode"),
+        Line2D([0], [0], color=_MODE_COLOR[1], lw=1.3, ls="--", label="HP-off"),
+        Line2D([0], [0], color="grey", lw=8, alpha=0.20,         label="IQR across runs"),
+    ]
+    fig.legend(
+        handles=handles,
+        loc="lower center", ncol=3, fontsize=7.5,
+        frameon=False, bbox_to_anchor=(0.5, 0.0),
+    )
+    fig.tight_layout(rect=[0, 0.05, 1, 1])
+    return fig
+
+
+# ── Figure 3: entry-exit transition rate ──────────────────────────────────────
+
+def build_transitions_figure(data: dict, entry_exit: np.ndarray) -> plt.Figure:
+    """5×4 grid: entry-exit rate across generations."""
+    sgi = data["sampled_gen_indices"]
+
+    fig, axes = plt.subplots(
+        N_NEURONS, len(CONDITION_ORDER),
+        figsize=(15, 13),
+        sharex=True, sharey="row",
+        squeeze=False,
+    )
+    fig.patch.set_facecolor("white")
+
+    for ni in range(N_NEURONS):
+        for ci, cond in enumerate(CONDITION_ORDER):
+            ax = axes[ni, ci]
+            for mi in range(N_MODES):
+                ls    = _MODE_LS[mi]
+                color = _MODE_COLOR[mi]
+                panel = entry_exit[ci, :, :, ni, mi]    # (n_runs, n_gens)
+
+                mean = np.nanmean(panel, axis=0)
+                std  = np.nanstd (panel, axis=0, ddof=1)
+
+                ax.fill_between(sgi, mean - std, mean + std,
+                                color=color, alpha=0.15, zorder=1)
+                ax.plot(sgi, mean, color=color, lw=1.3, ls=ls, zorder=2,
+                        label=_MODE_LABEL[mi])
+
+            ax.set_ylim(bottom=0)
+            _apply_panel_style(ax, sgi)
+
+    _add_grid_labels(
+        fig, axes,
+        row_labels=NEURON_LABELS,
+        col_labels=[CONDITION_LABELS[c] for c in CONDITION_ORDER],
+        row_ylabel="Rate (per 1000 steps)",
+    )
+
+    handles = [
+        Line2D([0], [0], color=_MODE_COLOR[0], lw=1.3, ls="-",  label="Training mode"),
+        Line2D([0], [0], color=_MODE_COLOR[1], lw=1.3, ls="--", label="HP-off"),
+        Line2D([0], [0], color="grey", lw=8, alpha=0.20,         label="±1 SD across runs"),
+    ]
+    fig.legend(
+        handles=handles,
+        loc="lower center", ncol=3, fontsize=7.5,
+        frameon=False, bbox_to_anchor=(0.5, 0.0),
+    )
+    fig.tight_layout(rect=[0, 0.05, 1, 1])
     return fig
 
 
 # ── Summary table ──────────────────────────────────────────────────────────────
 
-def print_summary(data: dict) -> None:
+def print_summary(data: dict, entry_exit: np.ndarray) -> None:
     fU   = data["frac_U"]
     fV   = data["frac_V"]
     fO   = data["frac_O"]
     dV   = data["dwell_V"]
-    dc   = data["direct_crossing_rate"]
     sgi  = data["sampled_gen_indices"]
     fi   = len(sgi) - 1   # index of final sampled generation
 
     print()
-    print("=" * 90)
+    print("=" * 95)
     print(f"Summary at final generation (gen {int(sgi[fi])}): mean across runs × neurons")
-    print("=" * 90)
+    print("=" * 95)
     hdr = (
         f"  {'Condition':<22} {'Mode':<15}"
         f" {'frac_U':>7} {'frac_V':>7} {'frac_O':>7}"
-        f" {'dwell_V':>8} {'direct_x':>9}"
+        f" {'dwell_V':>9} {'entry_exit':>11}"
     )
     print(hdr)
-    print("-" * 90)
+    print("-" * 95)
 
     for ci, cond in enumerate(CONDITION_ORDER):
         for mi, mode_name in [(MODE_TRAINING, "Training"), (MODE_HP_OFF, "HP off")]:
             fu = np.nanmean(fU [ci, :, fi, :, mi])
             fv = np.nanmean(fV [ci, :, fi, :, mi])
             fo = np.nanmean(fO [ci, :, fi, :, mi])
-            dv = np.nanmean(dV [ci, :, fi, :, mi])
-            dx = np.nanmean(dc [ci, :, fi, :, mi])
+            dv = np.nanmedian(dV[ci, :, fi, :, mi])    # median — dwell is right-skewed
+            ee = np.nanmean(entry_exit[ci, :, fi, :, mi])
             print(
                 f"  {CONDITION_LABELS[cond]:<22} {mode_name:<15}"
                 f" {fu:7.4f} {fv:7.4f} {fo:7.4f}"
-                f" {dv:8.2f} {dx:9.4f}"
+                f" {dv:9.2f} {ee:11.4f}"
             )
         print()
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────
 
-def main() -> None:
-    FIGS_DIR.mkdir(parents=True, exist_ok=True)
+def _load_or_collect(grouped: dict) -> dict:
+    """Return data dict from npz if transition_rates present, else rerun replays."""
+    npz_path = FIGS_DIR / "viable_range_diagnostics.npz"
+    if npz_path.exists():
+        d = np.load(npz_path, allow_pickle=False)
+        if "transition_rates" in d:
+            print(
+                f"[{_ts()}] Loaded cached data from {npz_path} "
+                f"(transition_rates present — skipping replays).",
+                flush=True,
+            )
+            return {k: d[k] for k in d.files}
 
-    grouped   = runs_by_condition()
-    n_runs    = sum(len(grouped[c]) for c in CONDITION_ORDER)
-    print(
-        f"[{_ts()}] Starting viable-range diagnostics on"
-        f" {n_runs} runs across {len(CONDITION_ORDER)} conditions.",
-        flush=True,
-    )
-
+    print(f"[{_ts()}] transition_rates missing from npz; rerunning replay computation.", flush=True)
     data = collect_data(grouped)
 
-    # ── Sanity check: fractions must sum to 1 ────────────────────────────────
     total = data["frac_U"] + data["frac_V"] + data["frac_O"]
     max_err = float(np.nanmax(np.abs(total - 1.0)))
-    print(f"\n[{_ts()}] Fraction sum check: max |U+V+O − 1| = {max_err:.2e}", flush=True)
+    print(f"[{_ts()}] Fraction sum check: max |U+V+O − 1| = {max_err:.2e}", flush=True)
     assert max_err < 1e-10, f"Fractions do not sum to 1 (max error {max_err:.2e})"
 
-    # ── Save npz ──────────────────────────────────────────────────────────────
-    npz_path = FIGS_DIR / "viable_range_diagnostics.npz"
+    FIGS_DIR.mkdir(parents=True, exist_ok=True)
     np.savez(npz_path, **data)
     print(f"[{_ts()}] Saved: {npz_path}", flush=True)
+    return data
 
-    # ── Figures ───────────────────────────────────────────────────────────────
+
+def main() -> None:
+    FIGS_DIR.mkdir(parents=True, exist_ok=True)
+    grouped = runs_by_condition()
+
+    data = _load_or_collect(grouped)
+
+    # Derive entry-exit rate from the full transition-rate matrix
+    entry_exit = compute_entry_exit_rate(data["transition_rates"])
+
+    print_summary(data, entry_exit)
+
     fig1 = build_states_figure(data)
     out1 = FIGS_DIR / "viable_range_states.pdf"
     fig1.savefig(out1, bbox_inches="tight")
@@ -493,7 +557,11 @@ def main() -> None:
     plt.close(fig2)
     print(f"[{_ts()}] Saved: {out2}", flush=True)
 
-    print_summary(data)
+    fig3 = build_transitions_figure(data, entry_exit)
+    out3 = FIGS_DIR / "viable_range_transitions.pdf"
+    fig3.savefig(out3, bbox_inches="tight")
+    plt.close(fig3)
+    print(f"[{_ts()}] Saved: {out3}", flush=True)
 
 
 if __name__ == "__main__":
