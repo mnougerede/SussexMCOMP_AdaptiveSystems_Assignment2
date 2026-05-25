@@ -24,8 +24,13 @@ FIRING_RATE_CMAP = mcolors.LinearSegmentedColormap.from_list(
 
 # Zone colours for line plots, sampled from the three cmap regions
 COLOR_UNDER  = "#1A4F8A"   # deep blue  — U (under-active)
-COLOR_VIABLE = "#F0EFE8"   # light cream — V (viable)
+COLOR_VIABLE = "#F0EFE8"   # light cream — V (viable); invisible on white, use line variants below
 COLOR_OVER   = "#A61C22"   # deep red   — O (over-active)
+
+# Line-plot colours: visible on white backgrounds where cream (#F0EFE8) disappears
+COLOUR_VIABLE_LINE = "#2ca02c"   # mid-green   — V viable fraction / dwell / entry-exit
+COLOUR_UNDER_LINE  = "#1A4F8A"   # deep blue   — U under-active; matches heatmap zone
+COLOUR_OVER_LINE   = "#A61C22"   # deep red    — O over-active;  matches heatmap zone
 
 CONDITION_ORDER: list[str] = ["HP_OFF", "HP_DEV_ONLY", "HP_BEHAVIOUR_ONLY", "HP_BOTH"]
 CONDITION_LABELS: dict[str, str] = {

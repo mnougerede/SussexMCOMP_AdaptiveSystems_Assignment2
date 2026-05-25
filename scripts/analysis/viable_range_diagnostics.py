@@ -42,7 +42,7 @@ from plasticity.hp import HP
 
 from load_runs import runs_by_condition
 from plot_utils import (
-    COLOR_OVER, COLOR_UNDER, COLOR_VIABLE,
+    COLOUR_OVER_LINE, COLOUR_UNDER_LINE, COLOUR_VIABLE_LINE,
     CONDITION_LABELS, CONDITION_ORDER,
     FIRING_RATE_CMAP,  # noqa: F401 – exported for callers
     H_L, H_U,
@@ -69,9 +69,8 @@ MODE_TRAINING = 0   # index for the run's own training HP-mode
 MODE_HP_OFF   = 1   # index for hp_mode='none'
 N_MODES       = 2
 
-# Line style / colour for each HP mode
+# Line style for each HP mode (colour is always COLOUR_VIABLE_LINE; mode shown by dash)
 _MODE_LS    = ["-",  "--"]
-_MODE_COLOR = ["#1d3f5e", "#7a9fbc"]   # dark navy (training), mid-blue (HP-off)
 _MODE_LABEL = ["Training mode", "HP-off"]
 
 
@@ -290,8 +289,6 @@ def _add_grid_labels(
             f"{row_labels[ni]}\n{row_ylabel}",
             fontsize=7.5, fontweight="bold", labelpad=8,
         )
-    for ni in range(n_rows):
-        axes[ni, -1].yaxis.set_tick_params(labelright=False)
     for ni in range(n_rows - 1):
         for ci in range(n_cols):
             axes[ni, ci].tick_params(axis="x", labelbottom=False)
@@ -299,12 +296,46 @@ def _add_grid_labels(
         axes[-1, ci].set_xlabel("Generation", fontsize=8)
 
 
+def _annotate_clipped(ax: plt.Axes, panel_max: float, cap: float, fmt: str = ".0f") -> None:
+    """Add a small italic note if panel_max exceeds the row cap."""
+    if panel_max > cap * 1.001:
+        ax.text(
+            0.97, 0.97, f"↑{panel_max:{fmt}}",
+            transform=ax.transAxes, ha="right", va="top",
+            fontsize=5.5, style="italic", color="#555555",
+        )
+
+
+def _states_row_cap(fV: np.ndarray, fU: np.ndarray, fO: np.ndarray, ni: int) -> float:
+    """95th percentile of raw state-fraction values for neuron row ni (all conds/modes)."""
+    row = np.concatenate([
+        fV[:, :, :, ni, :].ravel(),
+        fU[:, :, :, ni, :].ravel(),
+        fO[:, :, :, ni, :].ravel(),
+    ])
+    return float(np.nanpercentile(row, 95))
+
+
+def _dwell_row_cap(dV: np.ndarray, ni: int) -> float:
+    """95th percentile of plotted dwell values (median + q75) for neuron row ni."""
+    vals: list[float] = []
+    for ci in range(len(CONDITION_ORDER)):
+        for mi in range(N_MODES):
+            panel = dV[ci, :, :, ni, mi]
+            vals.extend(np.nanmedian(panel, axis=0).tolist())
+            vals.extend(np.nanpercentile(panel, 75, axis=0).tolist())
+    return float(np.nanpercentile([v for v in vals if not np.isnan(v)], 95))
+
+
 # ── Figure 1: state fractions ──────────────────────────────────────────────────
 
 def build_states_figure(data: dict) -> plt.Figure:
-    """5×4 grid: three state fractions across generations, both HP-modes per panel."""
+    """5×4 grid: frac_V (both modes), frac_U and frac_O (training only), p95-capped rows."""
     sgi = data["sampled_gen_indices"]
     fU, fV, fO = data["frac_U"], data["frac_V"], data["frac_O"]
+
+    # Per-row p95 cap from raw fraction data (naturally ≤ 1; prevents scale lock to 1.0)
+    row_caps = [_states_row_cap(fV, fU, fO, ni) for ni in range(N_NEURONS)]
 
     fig, axes = plt.subplots(
         N_NEURONS, len(CONDITION_ORDER),
@@ -315,24 +346,40 @@ def build_states_figure(data: dict) -> plt.Figure:
     fig.patch.set_facecolor("white")
 
     for ni in range(N_NEURONS):
+        cap = row_caps[ni]
         for ci, cond in enumerate(CONDITION_ORDER):
             ax = axes[ni, ci]
-            for mi in range(N_MODES):
-                ls = _MODE_LS[mi]
 
-                mean_V = np.nanmean(fV[ci, :, :, ni, mi], axis=0)
-                std_V  = np.nanstd (fV[ci, :, :, ni, mi], axis=0, ddof=1)
-                mean_U = np.nanmean(fU[ci, :, :, ni, mi], axis=0)
-                mean_O = np.nanmean(fO[ci, :, :, ni, mi], axis=0)
+            # frac_V training: solid line + ±1 SD band
+            fV_tr     = fV[ci, :, :, ni, MODE_TRAINING]
+            mean_V_tr = np.nanmean(fV_tr, axis=0)
+            std_V_tr  = np.nanstd (fV_tr, axis=0, ddof=1)
+            ax.fill_between(sgi, mean_V_tr - std_V_tr, mean_V_tr + std_V_tr,
+                            color=COLOUR_VIABLE_LINE, alpha=0.18, zorder=1)
+            ax.plot(sgi, mean_V_tr, color=COLOUR_VIABLE_LINE, lw=1.5, ls="-", zorder=3)
 
-                ax.fill_between(sgi, mean_V - std_V, mean_V + std_V,
-                                color=COLOR_VIABLE, alpha=0.20, zorder=1)
-                ax.plot(sgi, mean_V, color=COLOR_VIABLE, lw=1.5, ls=ls, zorder=2)
-                ax.plot(sgi, mean_U, color=COLOR_UNDER,  lw=1.1, ls=ls, zorder=2)
-                ax.plot(sgi, mean_O, color=COLOR_OVER,   lw=1.1, ls=ls, zorder=2)
+            # frac_V HP-off: dashed, no band (the assimilation signal)
+            mean_V_hp = np.nanmean(fV[ci, :, :, ni, MODE_HP_OFF], axis=0)
+            ax.plot(sgi, mean_V_hp, color=COLOUR_VIABLE_LINE, lw=1.2, ls="--", zorder=3)
 
-            ax.set_ylim(0, 1)
+            # frac_U training only: solid (HP-off derivable, excluded to reduce clutter)
+            mean_U_tr = np.nanmean(fU[ci, :, :, ni, MODE_TRAINING], axis=0)
+            ax.plot(sgi, mean_U_tr, color=COLOUR_UNDER_LINE, lw=1.1, ls="-", zorder=2)
+
+            # frac_O training only: solid
+            mean_O_tr = np.nanmean(fO[ci, :, :, ni, MODE_TRAINING], axis=0)
+            ax.plot(sgi, mean_O_tr, color=COLOUR_OVER_LINE, lw=1.1, ls="-", zorder=2)
+
+            panel_max = float(max(
+                np.nanmax(mean_V_tr + std_V_tr),
+                np.nanmax(mean_V_hp),
+                np.nanmax(mean_U_tr),
+                np.nanmax(mean_O_tr),
+            ))
+            _annotate_clipped(ax, panel_max, cap, fmt=".2f")
             _apply_panel_style(ax, sgi)
+
+        axes[ni, 0].set_ylim(0, cap)
 
     _add_grid_labels(
         fig, axes,
@@ -341,30 +388,36 @@ def build_states_figure(data: dict) -> plt.Figure:
         row_ylabel="State fraction",
     )
 
-    # Shared legend
     handles = [
-        Line2D([0], [0], color=COLOR_VIABLE, lw=1.5, ls="-",  label="V viable"),
-        Line2D([0], [0], color=COLOR_UNDER,  lw=1.1, ls="-",  label="U under-active"),
-        Line2D([0], [0], color=COLOR_OVER,   lw=1.1, ls="-",  label="O over-active"),
-        Line2D([0], [0], color="grey", lw=1.2, ls="-",  label="Training mode (solid)"),
-        Line2D([0], [0], color="grey", lw=1.2, ls="--", label="HP-off (dashed)"),
-        Line2D([0], [0], color=COLOR_VIABLE, lw=8, alpha=0.25, label="V ±1 SD"),
+        Line2D([0], [0], color=COLOUR_VIABLE_LINE, lw=1.5, ls="-",
+               label="V viable — training"),
+        Line2D([0], [0], color=COLOUR_VIABLE_LINE, lw=1.2, ls="--",
+               label="V viable — HP-off"),
+        Line2D([0], [0], color=COLOUR_UNDER_LINE,  lw=1.1, ls="-",
+               label="U under-active — training"),
+        Line2D([0], [0], color=COLOUR_OVER_LINE,   lw=1.1, ls="-",
+               label="O over-active — training"),
+        Line2D([0], [0], color=COLOUR_VIABLE_LINE, lw=8, alpha=0.22,
+               label="V ±1 SD"),
     ]
     fig.legend(
         handles=handles,
-        loc="lower center", ncol=6, fontsize=7.5,
+        loc="lower center", ncol=5, fontsize=7.5,
         frameon=False, bbox_to_anchor=(0.5, 0.0),
     )
-    fig.tight_layout(rect=[0, 0.06, 1, 1])
+    fig.tight_layout(rect=[0, 0.05, 1, 1])
     return fig
 
 
 # ── Figure 2: viable-state dwell time ─────────────────────────────────────────
 
 def build_dwell_figure(data: dict) -> plt.Figure:
-    """5×4 grid: median viable-state dwell time across generations, IQR band."""
+    """5×4 grid: median dwell_V with IQR band; y-axis capped at p95 of plotted values."""
     sgi = data["sampled_gen_indices"]
     dV  = data["dwell_V"]
+
+    # Per-row p95 cap based on plotted median + q75 (not raw data; avoids single-run spikes)
+    row_caps = [_dwell_row_cap(dV, ni) for ni in range(N_NEURONS)]
 
     fig, axes = plt.subplots(
         N_NEURONS, len(CONDITION_ORDER),
@@ -375,23 +428,27 @@ def build_dwell_figure(data: dict) -> plt.Figure:
     fig.patch.set_facecolor("white")
 
     for ni in range(N_NEURONS):
+        cap = row_caps[ni]
         for ci, cond in enumerate(CONDITION_ORDER):
             ax = axes[ni, ci]
+            panel_max_vals: list[float] = []
             for mi in range(N_MODES):
-                ls    = _MODE_LS[mi]
-                color = _MODE_COLOR[mi]
                 panel = dV[ci, :, :, ni, mi]            # (n_runs, n_gens)
-
                 med = np.nanmedian(panel, axis=0)
                 q25 = np.nanpercentile(panel, 25, axis=0)
                 q75 = np.nanpercentile(panel, 75, axis=0)
+                # Training band slightly more opaque than HP-off band
+                alpha = 0.20 if mi == MODE_TRAINING else 0.10
+                ax.fill_between(sgi, q25, q75,
+                                color=COLOUR_VIABLE_LINE, alpha=alpha, zorder=1)
+                ax.plot(sgi, med, color=COLOUR_VIABLE_LINE, lw=1.3, ls=_MODE_LS[mi],
+                        zorder=2)
+                panel_max_vals.extend([float(np.nanmax(q75)), float(np.nanmax(med))])
 
-                ax.fill_between(sgi, q25, q75, color=color, alpha=0.15, zorder=1)
-                ax.plot(sgi, med, color=color, lw=1.3, ls=ls, zorder=2,
-                        label=_MODE_LABEL[mi])
-
-            ax.set_ylim(bottom=0)
+            _annotate_clipped(ax, max(panel_max_vals), cap)
             _apply_panel_style(ax, sgi)
+
+        axes[ni, 0].set_ylim(0, cap)
 
     _add_grid_labels(
         fig, axes,
@@ -401,13 +458,18 @@ def build_dwell_figure(data: dict) -> plt.Figure:
     )
 
     handles = [
-        Line2D([0], [0], color=_MODE_COLOR[0], lw=1.3, ls="-",  label="Training mode"),
-        Line2D([0], [0], color=_MODE_COLOR[1], lw=1.3, ls="--", label="HP-off"),
-        Line2D([0], [0], color="grey", lw=8, alpha=0.20,         label="IQR across runs"),
+        Line2D([0], [0], color=COLOUR_VIABLE_LINE, lw=1.3, ls="-",
+               label="Training mode"),
+        Line2D([0], [0], color=COLOUR_VIABLE_LINE, lw=1.3, ls="--",
+               label="HP-off"),
+        Line2D([0], [0], color=COLOUR_VIABLE_LINE, lw=8, alpha=0.22,
+               label="IQR across runs"),
+        Line2D([0], [0], color="none", lw=0,
+               label="↑N  values above row cap exist"),
     ]
     fig.legend(
         handles=handles,
-        loc="lower center", ncol=3, fontsize=7.5,
+        loc="lower center", ncol=4, fontsize=7.5,
         frameon=False, bbox_to_anchor=(0.5, 0.0),
     )
     fig.tight_layout(rect=[0, 0.05, 1, 1])
@@ -417,7 +479,7 @@ def build_dwell_figure(data: dict) -> plt.Figure:
 # ── Figure 3: entry-exit transition rate ──────────────────────────────────────
 
 def build_transitions_figure(data: dict, entry_exit: np.ndarray) -> plt.Figure:
-    """5×4 grid: entry-exit rate across generations."""
+    """5×4 grid: entry-exit rate across generations (mean ±1 SD across runs)."""
     sgi = data["sampled_gen_indices"]
 
     fig, axes = plt.subplots(
@@ -432,17 +494,14 @@ def build_transitions_figure(data: dict, entry_exit: np.ndarray) -> plt.Figure:
         for ci, cond in enumerate(CONDITION_ORDER):
             ax = axes[ni, ci]
             for mi in range(N_MODES):
-                ls    = _MODE_LS[mi]
-                color = _MODE_COLOR[mi]
                 panel = entry_exit[ci, :, :, ni, mi]    # (n_runs, n_gens)
-
-                mean = np.nanmean(panel, axis=0)
-                std  = np.nanstd (panel, axis=0, ddof=1)
-
+                mean  = np.nanmean(panel, axis=0)
+                std   = np.nanstd (panel, axis=0, ddof=1)
+                alpha = 0.20 if mi == MODE_TRAINING else 0.10
                 ax.fill_between(sgi, mean - std, mean + std,
-                                color=color, alpha=0.15, zorder=1)
-                ax.plot(sgi, mean, color=color, lw=1.3, ls=ls, zorder=2,
-                        label=_MODE_LABEL[mi])
+                                color=COLOUR_VIABLE_LINE, alpha=alpha, zorder=1)
+                ax.plot(sgi, mean, color=COLOUR_VIABLE_LINE, lw=1.3,
+                        ls=_MODE_LS[mi], zorder=2)
 
             ax.set_ylim(bottom=0)
             _apply_panel_style(ax, sgi)
@@ -455,9 +514,12 @@ def build_transitions_figure(data: dict, entry_exit: np.ndarray) -> plt.Figure:
     )
 
     handles = [
-        Line2D([0], [0], color=_MODE_COLOR[0], lw=1.3, ls="-",  label="Training mode"),
-        Line2D([0], [0], color=_MODE_COLOR[1], lw=1.3, ls="--", label="HP-off"),
-        Line2D([0], [0], color="grey", lw=8, alpha=0.20,         label="±1 SD across runs"),
+        Line2D([0], [0], color=COLOUR_VIABLE_LINE, lw=1.3, ls="-",
+               label="Training mode"),
+        Line2D([0], [0], color=COLOUR_VIABLE_LINE, lw=1.3, ls="--",
+               label="HP-off"),
+        Line2D([0], [0], color=COLOUR_VIABLE_LINE, lw=8, alpha=0.22,
+               label="±1 SD across runs"),
     ]
     fig.legend(
         handles=handles,
