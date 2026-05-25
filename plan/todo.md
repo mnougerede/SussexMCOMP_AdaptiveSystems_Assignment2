@@ -179,26 +179,51 @@ Script: `scripts/analysis/behavioural_trajectories.py`. Figure: `figs/behavioura
 - [x] Qualitative findings recorded in methods_log §11.4: No HP sustained-saturated; Dev only bands through range (HP frozen in behaviour but developmental phase shaped sweeping dynamics); Behaviour only mostly in-range with per-neuron heterogeneity (right sensor bands); Both wider banding, more in-range time than No HP/Dev only. Motivates the two 8b metrics below.
 - [ ] Report: extract 2–4 representative panels (likely Dev only vs Behaviour only heatmaps) rather than the full 24-panel figure; caption to state blue/cream/red meaning. (Writing-phase task.)
 
-### 8b. Per-neuron viable-range diagnostics across evolution
+### 8b. Per-neuron viable-range diagnostics across evolution — DONE
 
-Two metrics, both motivated by the 8a figure. Fraction-in-range alone cannot distinguish a neuron parked in range from one sweeping through it (the No HP vs Dev only distinction), so the banding metric is required, not optional.
+Scripts: `scripts/analysis/viable_range_diagnostics.py` (computation + figures), `scripts/analysis/plot_utils.py` (shared constants). Data saved: `figs/viable_range_diagnostics.npz`.
 
-- [ ] **Fraction-in-range:** for each saved generation's best individual, replay a representative trial; record per neuron the fraction of timesteps firing rate in $[H_L, H_U]$
-- [ ] **Band-crossing rate:** for the same replay, per neuron, count transitions between the above-range state ($z > H_U$) and the below-range state ($z < H_L$) per unit time (the "banding" seen in 8a). Captures sweeping-through vs parked-at-a-rail, which fraction-in-range misses.
-- [ ] Plot both over generations, per condition (fraction-in-range and crossing-rate as separate panels or twin axes)
-- [ ] **Interpret via Baldwin frame:** does the in-range fraction in non-HP networks rise over generations (evolution discovering what HP would have enforced)? Does the HP-during-behaviour viable-range fraction depend on HP being active? Does the crossing-rate distinguish the developmental conditions (banding) from No HP (sustained saturation)?
-- [ ] **Replay HP-mode decision (to settle when writing the 8b prompt):** the diagnostic must specify whether the per-generation replay runs with HP in the run's own training mode or with HP off. Running in training mode measures the neurons as they actually behaved during evolution; running HP-off measures the innate (genotype-only) dynamics and connects to the assimilation question. Likely want both, or be explicit about which. Decide at prompt time.
+Two metrics computed per neuron per sampled generation (every 10 gens, plus gen 0 and gen 199), both HP-modes (training and HP-off), all 20 runs:
+- **frac\_V** (fraction of timesteps in viable range [H\_L, H\_U])
+- **Entry-exit rate** (transitions per 1000 steps between in-range and out-of-range states, replacing the uninformative direct-crossing rate which is structurally zero in a continuous system)
+- Also computed: frac\_U, frac\_O, mean dwell time per state, full 3×3 transition matrix
 
-### 8c. Frozen-HP test (assimilation test)
+**Key findings (at gen 199, mean across runs and neurons):** in training mode, all HP conditions reach frac\_V 0.34–0.44 vs No HP baseline 0.15; in HP-off mode, all HP conditions collapse to frac\_V 0.04–0.08. Entry-exit rate for Dev only training: 12.87/1000 (banding); HP-off: 0.06/1000 (sustained saturation). Full table in methods\_log §11.5.
 
-Single variant: freeze established dynamics after settling (Stolting-faithful adiabatic elimination), not freeze-from-genotype. Genotype-freeze variant demoted to Phase 9 optional; the genotype/innate-competence reading comes from the cross-condition comparison instead.
+**Assimilation finding:** no HP condition maintains viable-range occupancy without HP. Genetic assimilation of viable-range operation has not occurred.
 
-- [ ] **Freeze semantics:** set $\dot w = \dot b = 0$ from the freeze point, holding $(w,b)$ at HP-driven values. Do NOT reset to genotype. Williams's term: adiabatic elimination.
-- [ ] **Freeze point.** `both`: run developmental phase, run into trial, freeze at end of developmental phase (primary). `behaviour_only`: no developmental phase, so allow a settling window into the trial then freeze; state window length, confirm not knife-edge sensitive.
-- [ ] **Within-individual variance baseline.** Re-evaluate each individual N times with different shape-sequence seeds, HP active, to estimate fitness noise. The drop is significant only if it exceeds this.
-- [ ] **Controls (noise floor).** Re-evaluate `dev_only` and `no_hp` individuals under the identical freeze-and-continue procedure. Both behaved with HP off already, so the drop must be ~0. A non-trivial drop in either is a BUG signal, checked before interpreting any `behaviour_only`/`both` drop.
-- [ ] For each `behaviour_only` and `both` individual: fitness with HP active vs fitness after freezing. Measure the drop.
-- [ ] **Interpretation (Baldwin frame):** large drop → genetic assimilation has *not* occurred, behaviour is HP-dependent. Small drop → assimilation occurred. **(Stolting frame):** large drop is consistent with HP-enabled dynamics being essential to behaviour; small drop is inconsistent with this mechanism.
+**Reporting decision:** full per-neuron 5×4 grid figures exist (three PDFs in `figs/`) but are too dense for the report body. Report via the summary table (methods\_log §11.5) plus a compact condition-level figure still to be built — one pass, 3 panels showing mean frac\_V across generations (training mode) and frac\_V HP-off mode, plus final-generation entry-exit rate grouped bars. Queued in the figure-polish pass.
+
+- [x] Both metrics computed for all 20 runs, every 10 generations, both HP-modes
+- [x] Findings recorded in methods\_log §11.5
+- [x] Diagnostic figures in `figs/` (supplementary/reference use)
+- [ ] Compact report figure (3 panels, condition-level mean, queued for polish pass)
+- [ ] Re-run when `replication_desktop_extra` completes (n=10)
+
+### 8c. Frozen-HP test (assimilation test) — DONE
+
+Script: `scripts/analysis/frozen_hp_test.py`. Figures: `figs/frozen_hp_scatter.pdf`, `figs/frozen_hp_drop.pdf`. Data: `figs/frozen_hp_results.csv`.
+
+Freeze semantics: adiabatic elimination (Williams's term). For `behaviour_only`: hp\_mode='behaviour' (HP active all 20 shapes) vs hp\_mode='none' (frozen), fitness aggregated over shapes 11–20 only; shapes 1–10 are the settling window. For `both`: hp\_mode='both' vs hp\_mode='development' (dev with HP on, then frozen for behaviour shapes), fitness over all 20 shapes; developmental phase is the settling window. Controls: `dev_only` (hp\_mode='development' vs 'none') and `no_hp` (hp\_mode='none' vs 'none'). Within-individual baseline: 20 re-evals with seeds 0–19.
+
+**Results (drops in baseline SD units):**
+- *No HP (control):* ±0.85 SD, two slightly negative. Pure measurement noise. ✓
+- *Dev only:* 5.6–21.2 SD. Two complete collapses to frozen fitness = 0.000 (s203, s600). Diagnostic confirmed real: raw genotype drives z[3]=0.969, z[4]=0.012; agent accelerates hard left to body.x = −25,450; all shapes score zero. Developmental HP is doing all functional work.
+- *Behaviour only:* 1.0–5.3 SD. All positive. Partial collapse, no complete failures. Agents retain function but are meaningfully worse.
+- *Both:* bimodal. Two complete collapses (s401, s402; 11.6 and 15.3 SD). Three moderate drops (1.4–7.6 SD).
+
+**Assimilation verdict:** genetic assimilation has not occurred in any HP condition. HP is not merely helpful but constitutive of the behaviour in the worst cases.
+
+**Dev only paradox** (see methods\_log §11.5): best-performing condition (mean 0.832) yet most HP-dependent (complete collapses). Not a contradiction — Dev only evolution never selected for raw-parameter competence because HP always pre-conditioned every evaluated individual.
+
+**Both puzzle** (see methods\_log §11.5): behaviour-phase HP likely fights the developmentally-established configuration rather than building on it.
+
+- [x] All 20 individuals evaluated (shapes 11–20 for behaviour\_only, all 20 for both/dev/no\_hp)
+- [x] Within-individual variance baseline (N=20)
+- [x] Controls confirmed near-zero
+- [x] Complete-collapse individuals diagnosed and confirmed real
+- [x] Results in methods\_log §11.5
+- [ ] Re-run when `replication_desktop_extra` completes (n=10)
 
 ### 8d. Search-dynamics analysis (analysis of the larger adaptive system) — DONE (first batch)
 
@@ -214,7 +239,7 @@ Analysis of the search, not the evolved product. All from saved `history/` data 
 - [x] `scripts/analysis/load_runs.py` — shared loader, run discovery, condition resolution (config.json authoritative, manifest disagreement warns), npz reading, grouping. 16 synthetic-fixture tests, 79 total passing. Fix: path normalisation for the cross-machine `_resolve_output_dir` rglob fallback (desktop runs store `/home/mnoug/...` paths; loader patches `experiment_status.EXPERIMENTS_DIR` via realpath — comment in code, do not remove).
 - [x] `scripts/analysis/replication_figure.py` — two PDFs + stats summary (see Phase 7 result above).
 
-**Gate:** four substantive analyses, each producing a publishable-quality figure and a clear empirical claim.
+**Gate: PASSED.** All four analyses done: 8a trajectories, 8b viable-range diagnostics, 8c frozen-HP test, 8d search dynamics. Each has produced empirical findings recorded in methods\_log §11. Pending items before Phase 10: figure polish pass (see Phase 7 polish items), compact 8b report figure, re-run all analysis scripts when n=10 batch completes.
 
 ---
 

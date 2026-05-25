@@ -296,9 +296,9 @@ Stolting, Beer & Izquierdo (2023) speculated that HP-during-behaviour evolves li
 
 The Baldwin frame and Stolting frame are complementary: Stolting proposes a specific mechanism by which genetic assimilation can fail (HP creates dynamics that cannot be reproduced without it); the Baldwin frame is the more general claim that assimilation either has or has not occurred. The same frozen-HP test answers both.
 
-### 11.4 Interpreting the condition results: a hypothesis and an open puzzle
+### 11.4 Interpreting the condition results: hypothesis, puzzle, and resolution
 
-This subsection records the working interpretation of the four-condition results, flagged as hypothesis rather than established mechanism. The viable-range diagnostics (8b) and the frozen-HP test (8c) are the analyses that will test it; until they are done, the prose in the report should present this as a question the data raises, not a conclusion it supports.
+This subsection records the interpretation of the four-condition results in three layers: the pre-8b/8c hypothesis, the 8a trajectory observations that motivated the diagnostics, and the 8b/8c empirical findings that resolve the puzzle. The 8b and 8c analyses are complete; the discussion can now assert the mechanistic claims, not merely raise them as questions.
 
 **What the evidence currently shows.** Two findings are solid. First, from the search-dynamics figure: the Dev only condition converges to a higher final fitness than the other three while collapsing its population fitness spread on the same early timescale (by roughly generation 10 to 20) as the others. It does not search longer or maintain more diversity; it converges to a better optimum. Second, from the replication statistics: Both is statistically indistinguishable from the No HP baseline (Kruskal-Wallis across conditions significant at p = 0.027, driven by Dev only; No HP, Behaviour only and Both mutually indistinguishable at n = 5).
 
@@ -316,6 +316,48 @@ This subsection records the working interpretation of the four-condition results
 - *Both.* A banding pattern similar to the developmental conditions but with wider bands and more total time spent within [H_L, H_U] than No HP or Dev only.
 
 The cross-condition reading is that in-range occupancy during behaviour broadly tracks whether HP is active during behaviour (Behaviour only and Both show more in-range time than No HP and Dev only), but this is confounded by a distinct banding phenomenon present in the conditions that ran a developmental phase. Two quantities are needed to describe this objectively, and 8b computes both: the fraction of timesteps each neuron is in [H_L, H_U] (capturing in-range occupancy), and the rate at which each neuron crosses between the above-range and below-range states (capturing banding). Fraction-in-range alone cannot distinguish a neuron parked in range from one sweeping through it, which is exactly the No HP versus Dev only distinction; the crossing-rate metric was added to 8b on the strength of this figure. The banding observation also gives the discussion a concrete motor-level hook: HP pushing the two motor neurons toward the viable range constrains the differential drive z[4] − z[3], so sustained saturation, banding, and in-range operation should correspond to different movement textures in the trajectory panels.
+
+### 11.5 Empirical findings from 8b (viable-range diagnostics) and 8c (frozen-HP test)
+
+These findings are established results, not hypotheses. The discussion should assert them directly.
+
+**8b: viable-range diagnostics (summary table at generation 199, mean across runs and neurons).**
+
+| Condition | Mode | frac\_U | frac\_V | frac\_O | dwell\_V (steps) | entry-exit (per 1000) |
+|---|---|---|---|---|---|---|
+| No HP | Training | 0.384 | 0.152 | 0.464 | 4.0 | 1.49 |
+| No HP | HP off | 0.384 | 0.152 | 0.464 | 4.0 | 1.49 |
+| Dev only | Training | 0.230 | 0.431 | 0.339 | 16.5 | 12.87 |
+| Dev only | HP off | 0.381 | 0.076 | 0.543 | 0.0 | 0.06 |
+| Behaviour only | Training | 0.282 | 0.439 | 0.279 | 34.9 | 5.08 |
+| Behaviour only | HP off | 0.386 | 0.038 | 0.576 | 1.0 | 0.04 |
+| Both | Training | 0.331 | 0.342 | 0.327 | 21.4 | 5.54 |
+| Both | HP off | 0.479 | 0.041 | 0.480 | 0.0 | 0.007 |
+
+Key readings: (a) in training mode, all three HP conditions achieve frac\_V between 0.34 and 0.44, well above the No HP baseline of 0.15; (b) in HP-off mode, all three HP conditions collapse to frac\_V between 0.04 and 0.08, at or below the No HP baseline; (c) No HP training and HP-off rows are identical (HP was never active, so removing it changes nothing — an internal consistency check that passed exactly); (d) the entry-exit rate distinguishes the developmental conditions from No HP: Dev only training mode shows 12.87 transitions per 1000 steps (frequent sweeping through the viable range — the banding pattern) compared to No HP's 1.49. With HP removed, Dev only collapses to 0.06 — the banding stops, and what remains is occasional long-dwell settling (dwell\_V falls to 0.0 at the median, meaning more than half of sampled individuals never entered the viable range at all during the HP-off replay).
+
+The headline assimilation finding from 8b: every HP condition's viable-range behaviour depends on HP being active. The genotype alone, stripped of whatever plasticity it evolved with, does not maintain neurons in the viable range. HP-dependence is present in the neural dynamics of all three HP conditions; genetic assimilation of viable-range operation has not occurred.
+
+The 8b/8c pairing is the mechanistic-to-consequence chain: 8b establishes that HP-removal knocks neurons out of the viable range; 8c establishes that HP-removal also drops fitness. The conjunction — same intervention, two different collapses — is consistent with Williams's substrate claim that viable-range operation is functionally important. The claim is consistent, not proven; fitness could be sensitive to HP for other reasons (parameter drift affecting recurrent dynamics in ways not captured by viable-range fraction), so the language in the report should be "consistent with" rather than "demonstrates that."
+
+**8c: frozen-HP test (full per-individual results in `figs/frozen_hp_results.csv`).**
+
+The test compares HP-active fitness against HP-frozen fitness for each of the 20 final-generation best individuals. Freeze semantics: for `behaviour_only`, adiabatic elimination at a 10-shape settling window boundary (shapes 1–10 with HP active, fitness measured on shapes 11–20 with parameters fixed); for `both`, adiabatic elimination at end of developmental phase (hp\_mode='development', which runs dev with HP on then disables it before behaviour shapes). For `dev_only` and `no_hp` controls, hp\_mode='none' is the frozen variant. Within-individual variance baseline: 20 re-evaluations with seeds 0–19, HP active, to establish measurement noise per individual.
+
+Per-condition findings:
+
+- *No HP (control):* drops within ±0.85 SD of baseline, two slightly negative. Consistent with pure measurement noise. Control confirmed.
+- *Dev only:* drops of 5.6 to 21.2 SD. Two individuals (s203, s600) collapse to frozen fitness = 0.000. Diagnostic confirmed these are real: the raw genotype drives the left motor at z[3] = 0.969 and right motor at z[4] = 0.012, a near-maximum asymmetry that accelerates the agent hard left indefinitely; body.x reaches −25,450 by trial end; all 20 shapes score zero. The developmental HP phase is doing all of the functional work for these individuals.
+- *Behaviour only:* drops of 1.0 to 5.3 SD. All positive. Partial collapse: agents retain function when frozen but are meaningfully worse. No complete collapses.
+- *Both:* bimodal. Two individuals (s401, s402) collapse to frozen fitness = 0.000 (drops of 11.6 and 15.3 SD). Three show moderate drops of 1.4 to 7.6 SD. Same parasitic pattern as Dev only in a subset of runs.
+
+The assimilation verdict from 8c: genetic assimilation has not occurred in any HP condition. All HP individuals show fitness drops significantly exceeding the noise baseline; in two Dev only and two Both individuals the behaviour collapses completely on adiabatic elimination. The within-lifetime HP adaptation is not merely helpful but constitutive of the behaviour in the worst cases.
+
+**The Both puzzle resolved (partially).** The 8c data clarifies the Earlier open question of why Both fails to inherit Dev only's fitness advantage. Dev only and Both both run a developmental HP phase, yet Both's final fitness (mean 0.663) is dragged back to the No HP baseline (mean 0.671) despite having the same developmental head start. The frozen-HP results show Both individuals are at least as HP-dependent as Dev only ones, including complete collapses in two runs. The candidate mechanism: Both's behaviour-phase HP continues modifying parameters that the developmental phase set up for a particular configuration; the ongoing plasticity fights the developed state rather than building on it. The 8b diagnostics are consistent with this — Both training mode shows more time in the viable range than No HP but less stable dynamics than Behaviour only, suggesting the two HP phases are not fully cooperative. This remains a mechanistic interpretation of the data, not a directly demonstrated cause; the report should frame it as the most parsimonious explanation.
+
+**The Dev only paradox.** Dev only is the best-performing condition (mean fitness 0.832) yet shows the largest HP-dependency (complete collapse in two runs). This is not a contradiction. Dev only evolution never selected for raw-parameter competence: because HP always ran before evaluation, every individual the GA saw had been pre-conditioned by HP. There was no way for the GA to distinguish a genotype that works because its raw parameters are good from one that works because HP transforms them into something good. Both look identical to the fitness function. The result is that some Dev only genotypes are excellent post-development but catastrophically parasitic pre-development, a result not visible during evolution at all. The high fitness and the high HP-dependence are two sides of the same selection regime.
+
+Scripts: `scripts/analysis/viable_range_diagnostics.py` (8b), `scripts/analysis/frozen_hp_test.py` (8c). Data: `figs/viable_range_diagnostics.npz`, `figs/frozen_hp_results.csv`.
 
 ---
 
