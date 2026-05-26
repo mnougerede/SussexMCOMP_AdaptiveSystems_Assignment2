@@ -29,7 +29,7 @@ from load_runs import (
     runs_by_condition,
 )
 
-EXPECTED_RUNS = 5
+EXPECTED_RUNS = 10
 _REPO_ROOT = Path(os.path.realpath(__file__)).parent.parent.parent
 FIGS_DIR = _REPO_ROOT / "figs"
 
@@ -100,7 +100,7 @@ def _fitness_curves_figure(curves: dict[str, list[np.ndarray]]) -> None:
     ax.set_xlabel("Generation", fontsize=11)
     ax.set_ylabel("Best fitness", fontsize=11)
     ax.set_xlim(0, matrix.shape[1] - 1)
-    ax.set_ylim(0, 1)
+    ax.set_ylim(0.3, 1.0)
     ax.legend(fontsize=9, frameon=False)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
@@ -151,7 +151,7 @@ def _final_box_figure(finals: dict[str, list[float]]) -> None:
     ax.set_xticks(range(1, len(labels) + 1))
     ax.set_xticklabels(labels, fontsize=10)
     ax.set_ylabel("Final best fitness", fontsize=11)
-    ax.set_ylim(0, 1)
+    ax.set_ylim(0.3, 1.0)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     fig.tight_layout()
@@ -237,6 +237,21 @@ def _statistical_summary(finals: dict[str, list[float]]) -> None:
     print()
 
 
+# ─── CSV export ──────────────────────────────────────────────────────────────
+
+def _write_final_fitness_csv(curves: dict[str, list[np.ndarray]]) -> None:
+    import csv
+    grouped = runs_by_condition()
+    out = FIGS_DIR / "replication_final_fitness.csv"
+    with open(out, "w", newline="") as fh:
+        writer = csv.writer(fh)
+        writer.writerow(["condition", "label", "seed", "final_best_fitness"])
+        for cond in CONDITION_ORDER:
+            for run, series in zip(grouped[cond], curves[cond]):
+                writer.writerow([cond, CONDITION_LABELS[cond], run["seed"], float(series[-1])])
+    print(f"Saved: {out}")
+
+
 # ─── Entry point ─────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -244,6 +259,7 @@ def main() -> None:
     _fitness_curves_figure(curves)
     _final_box_figure(finals)
     _statistical_summary(finals)
+    _write_final_fitness_csv(curves)
 
 
 if __name__ == "__main__":

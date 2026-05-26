@@ -567,6 +567,41 @@ def print_summary(data: dict, entry_exit: np.ndarray) -> None:
         print()
 
 
+# ── CSV export ────────────────────────────────────────────────────────────────
+
+def _write_viable_range_csv(data: dict, entry_exit: np.ndarray) -> None:
+    import csv
+    fU  = data["frac_U"]
+    fV  = data["frac_V"]
+    fO  = data["frac_O"]
+    dV  = data["dwell_V"]
+    sgi = data["sampled_gen_indices"]
+    mode_names = ["training", "HP-off"]
+
+    out = FIGS_DIR / "viable_range_summary.csv"
+    with open(out, "w", newline="") as fh:
+        writer = csv.writer(fh)
+        writer.writerow([
+            "condition", "hp_mode", "generation",
+            "mean_frac_U", "mean_frac_V", "mean_frac_O",
+            "median_dwell_V", "mean_entry_exit",
+        ])
+        for ci, cond in enumerate(CONDITION_ORDER):
+            for mi, mode_name in enumerate(mode_names):
+                for ai, gen in enumerate(sgi):
+                    writer.writerow([
+                        CONDITION_LABELS[cond],
+                        mode_name,
+                        int(gen),
+                        float(np.nanmean(fU[ci, :, ai, :, mi])),
+                        float(np.nanmean(fV[ci, :, ai, :, mi])),
+                        float(np.nanmean(fO[ci, :, ai, :, mi])),
+                        float(np.nanmedian(dV[ci, :, ai, :, mi])),
+                        float(np.nanmean(entry_exit[ci, :, ai, :, mi])),
+                    ])
+    print(f"[{_ts()}] Saved: {out}", flush=True)
+
+
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 def _load_or_collect(grouped: dict) -> dict:
@@ -624,6 +659,8 @@ def main() -> None:
     fig3.savefig(out3, bbox_inches="tight")
     plt.close(fig3)
     print(f"[{_ts()}] Saved: {out3}", flush=True)
+
+    _write_viable_range_csv(data, entry_exit)
 
 
 if __name__ == "__main__":
