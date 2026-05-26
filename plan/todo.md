@@ -152,7 +152,7 @@ Four conditions: `no_hp`, `dev_only`, `behaviour_only`, `both`. 5 runs each, 20 
 
 **Computed result (replication_figure.py, first batch n=5):** `dev_only` clearly strongest. Kruskal-Wallis across conditions H=9.19, p=0.027 (significant). Pairwise Mann-Whitney with Bonferroni (×6): the two interesting pairs, `no_hp` vs `dev_only` and `dev_only` vs `both`, both reach U=1, raw p=0.016, p_bonf=0.095 — the strongest separation n=5 can plausibly produce, still just outside the corrected 0.05 threshold. The n=5 two-sided resolution floor is p=0.0040 (U=0). `no_hp`, `behaviour_only`, `both` are mutually indistinguishable. Ordering matches Williams qualitatively except that online-HP conditions are NOT significantly worse than `no_hp` (Williams found them worse) — candidate discussion point: the detrimental online-HP effect may have been partly a GA-conditioning artefact in Williams's roulette+top-5 setup.
 
-**Top-up decision:** running a second batch (`replication_desktop_extra`, base_seed 104, 5 more runs/condition) on the idle desktop to reach n=10/condition. Resume-tolerant; cost is near zero. Not because the current data is insufficient for the headline (it is sufficient — `dev_only` wins, the other three overlap), but because n=10 cleans up the three-way overlap story and matches Williams's runs-per-condition. Re-run replication_figure.py and search_dynamics.py when it completes; both pick up all runs automatically via the loader.
+**Top-up result (n=10 complete):** All 40 runs loaded and verified. Kruskal-Wallis H=17.71, p=0.0005. Dev only now significantly better than all other conditions after Bonferroni correction (p\_bonf=0.0035 vs No HP and Both, p\_bonf=0.0217 vs Behaviour only). No HP, Behaviour only, and Both remain mutually indistinguishable (p\_bonf=1.000). Means: No HP 0.674 (SD 0.096), Dev only 0.838 (SD 0.059), Behaviour only 0.709 (SD 0.097), Both 0.675 (SD 0.077). Notable n=10 correction: Behaviour only is bimodal in the frozen-HP test (3/10 complete collapses), not "moderate drops only" as n=5 suggested — see 8c results and methods\_log §11.5. The "expected 5" warning in replication\_figure.py should be updated to "expected 10" in the figure-polish pass.
 
 **Done (the analysis):**
 - [x] Best-fitness-per-generation curves, mean with $\pm$1 SD band, individual runs faint — `figs/replication_fitness_curves.pdf`
@@ -198,7 +198,7 @@ Two metrics computed per neuron per sampled generation (every 10 gens, plus gen 
 - [x] Findings recorded in methods\_log §11.5
 - [x] Diagnostic figures in `figs/` (supplementary/reference use)
 - [ ] Compact report figure (3 panels, condition-level mean, queued for polish pass)
-- [ ] Re-run when `replication_desktop_extra` completes (n=10)
+- [x] Re-run when `replication_desktop_extra` completes (n=10) — DONE
 
 ### 8c. Frozen-HP test (assimilation test) — DONE
 
@@ -223,7 +223,7 @@ Freeze semantics: adiabatic elimination (Williams's term). For `behaviour_only`:
 - [x] Controls confirmed near-zero
 - [x] Complete-collapse individuals diagnosed and confirmed real
 - [x] Results in methods\_log §11.5
-- [ ] Re-run when `replication_desktop_extra` completes (n=10)
+- [x] Re-run when `replication_desktop_extra` completes (n=10) — DONE
 
 ### 8d. Search-dynamics analysis (analysis of the larger adaptive system) — DONE (first batch)
 
@@ -233,13 +233,13 @@ Analysis of the search, not the evolved product. All from saved `history/` data 
 - [x] Diversity measure over generations: population fitness spread (per-generation SD of the 30 fitnesses). NOTE: genotype-based diversity is NOT computable — `history/` saves population fitnesses but not population genotypes. Fitness spread is the deliberate proxy; documented in the script and methods.
 - [x] Convergence comparison: `dev_only` jumps in first ~5 gens then plateaus; others rise gradually over 200 gens; spread collapses to ~0 by gen 10–20 in all conditions
 - [x] **Interpret via search-dynamics framing:** conditions differ in *where* they converge, not whether/how fast. Dev only converges higher. Full interpretation and the Both puzzle in methods_log §11.4 (flagged hypothesis pending 8b/8c)
-- [ ] Re-run when `replication_desktop_extra` completes (n=10) to confirm patterns hold
+- [x] Re-run when `replication_desktop_extra` completes (n=10) — DONE to confirm patterns hold
 
 **Loader + replication figure infrastructure (DONE):**
 - [x] `scripts/analysis/load_runs.py` — shared loader, run discovery, condition resolution (config.json authoritative, manifest disagreement warns), npz reading, grouping. 16 synthetic-fixture tests, 79 total passing. Fix: path normalisation for the cross-machine `_resolve_output_dir` rglob fallback (desktop runs store `/home/mnoug/...` paths; loader patches `experiment_status.EXPERIMENTS_DIR` via realpath — comment in code, do not remove).
 - [x] `scripts/analysis/replication_figure.py` — two PDFs + stats summary (see Phase 7 result above).
 
-**Gate: PASSED.** All four analyses done: 8a trajectories, 8b viable-range diagnostics, 8c frozen-HP test, 8d search dynamics. Each has produced empirical findings recorded in methods\_log §11. Pending items before Phase 10: figure polish pass (see Phase 7 polish items), compact 8b report figure, re-run all analysis scripts when n=10 batch completes.
+**Gate: PASSED.** All four analyses done and re-run at n=10: 8a trajectories, 8b viable-range diagnostics, 8c frozen-HP test, 8d search dynamics. Empirical findings recorded in methods\_log §11. Pending items before Phase 10: figure polish pass (zoom axes, individual runs on curves, CSV export, fix "expected 5" warning, compact 8b report figure).
 
 ---
 
