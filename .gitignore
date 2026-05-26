@@ -39,3 +39,4 @@ figs/
 *.npy
 batches/replication_desktop.json
 batches/replication_laptop.json
+/batches/replication_desktop_extra.json
