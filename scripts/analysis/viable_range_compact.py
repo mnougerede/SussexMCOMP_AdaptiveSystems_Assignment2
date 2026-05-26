@@ -95,8 +95,8 @@ def main() -> None:
 
     # ── Panels 1 & 2: frac_V over generations ─────────────────────────────────
     for ax, curves, title in [
-        (ax1, curves_train,  "Viable fraction — training"),
-        (ax2, curves_hp_off, "HP-off (assimilation probe)"),
+        (ax1, curves_train,  "Viable fraction — training mode"),
+        (ax2, curves_hp_off, "Viable fraction — HP off"),
     ]:
         for ci, cond in enumerate(CONDITION_ORDER):
             colour = _COND_COLOUR[cond]
@@ -104,7 +104,7 @@ def main() -> None:
             ax.fill_between(sgi, mean - sd, mean + sd, color=colour, alpha=0.18)
             ax.plot(sgi, mean, color=colour, linewidth=1.8, label=CONDITION_LABELS[cond])
         ax.set_xlim(int(sgi[0]), int(sgi[-1]))
-        ax.set_ylim(0, 1)
+        ax.set_ylim(0, 0.6)
         ax.set_xlabel("Generation", fontsize=10)
         ax.set_ylabel("Viable fraction", fontsize=10)
         ax.set_title(title, fontsize=10, fontweight="bold")
@@ -132,7 +132,7 @@ def main() -> None:
     ax3.set_xticklabels(labels, fontsize=9, rotation=15, ha="right")
     ax3.set_ylabel("Entry-exit rate (per 1000 steps)", fontsize=10)
     ax3.set_ylim(bottom=0)
-    ax3.set_title("Entry-exit rate (final generation)", fontsize=10, fontweight="bold")
+    ax3.set_title("Entry-exit rate — final generation", fontsize=10, fontweight="bold")
     ax3.spines["top"].set_visible(False)
     ax3.spines["right"].set_visible(False)
     ax3.legend(fontsize=9, frameon=False)
