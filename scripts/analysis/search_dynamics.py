@@ -88,6 +88,7 @@ def main() -> None:
     )
 
     legend_handles = None
+    csv_rows: list = []
 
     for ax, cond in zip(axes.flat, CONDITION_ORDER):
         runs = grouped[cond]
@@ -105,6 +106,12 @@ def main() -> None:
 
         mean_best, mean_mean, mean_spread = _condition_curves(runs)
         gens = np.arange(len(mean_best))
+
+        for gi in range(len(gens)):
+            csv_rows.append([
+                CONDITION_LABELS[cond], int(gens[gi]),
+                float(mean_best[gi]), float(mean_mean[gi]), float(mean_spread[gi]),
+            ])
 
         handles = []
         for key, arr in (("best", mean_best), ("mean", mean_mean), ("spread", mean_spread)):
@@ -152,6 +159,14 @@ def main() -> None:
     fig.savefig(out, bbox_inches="tight")
     plt.close(fig)
     print(f"Saved: {out}")
+
+    import csv
+    csv_out = FIGS_DIR / "search_dynamics_summary.csv"
+    with open(csv_out, "w", newline="") as fh:
+        writer = csv.writer(fh)
+        writer.writerow(["condition", "generation", "mean_best_fitness", "mean_mean_fitness", "mean_spread"])
+        writer.writerows(csv_rows)
+    print(f"Saved: {csv_out}")
 
 
 if __name__ == "__main__":
