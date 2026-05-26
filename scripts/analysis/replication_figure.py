@@ -226,12 +226,13 @@ def _statistical_summary(finals: dict[str, list[float]]) -> None:
             f"Δmedian={med_diff:+.4f}  p_bonf={p_bonf:.4f}"
         )
 
-    # Resolution floor: smallest achievable two-sided p at n=5 vs n=5
-    _, p_floor = stats.mannwhitneyu([0] * 5, [1] * 5, alternative="two-sided")
+    # Resolution floor: smallest achievable two-sided p at actual n vs n
+    k = len(all_groups[0])
+    _, p_floor = stats.mannwhitneyu([0] * k, [1] * k, alternative="two-sided")
     print()
     print("-" * 65)
     print(
-        f"Smallest achievable two-sided Mann-Whitney p at n=5 vs n=5: "
+        f"Smallest achievable two-sided Mann-Whitney p at n={k} vs n={k}: "
         f"{p_floor:.4f}  (U=0, complete separation)"
     )
     print()
