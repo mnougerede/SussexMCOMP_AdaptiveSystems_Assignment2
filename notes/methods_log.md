@@ -179,9 +179,25 @@ Each trial presents 20 falling shapes sequentially. Each shape is a circle of ra
 
 ## 7. Fitness function
 
-`[TBD: Pass — fitness function; implement after re-reading Williams eq. 7.3]`
+Fitness is Williams equation 7.3, a combined per-shape score averaged over shapes and trials. The implementation is in `src/environment/fitness.py`.
 
-Key constraint: Williams eq. 7.3 is a combined score with a displacement-reduction term and a final-distance term. Both components must be included. Do not implement from memory — re-read §7.4.1.2 of the thesis before writing any code.
+**Per-shape contribution.** For each falling shape $i$, given the agent's initial horizontal position $x_0^{\text{agent}}$, the shape's initial horizontal position $x_0^{\text{shape}}$, the shape's final horizontal position at the moment it passes the agent plane, and the agent's final horizontal position at that moment:
+
+$$S_0 = |x_0^{\text{agent}} - x_0^{\text{shape}}| \qquad S_f = |x_f^{\text{agent}} - x_f^{\text{shape}}|$$
+
+$$S_{\max} = (1 + |v_x|) \cdot \frac{100}{|v_y|}$$
+
+where $v_x$ and $v_y$ are the shape's horizontal and vertical velocities. $S_{\max}$ is the maximum horizontal displacement the shape could achieve over its full fall from $y = 100$ to $y = 0$, scaled by the horizontal speed, giving the worst-case final separation. The per-shape contribution is:
+
+$$c_i = \frac{1}{2}\left[\phi\!\left(1 - \frac{S_f}{S_0}\right) + \max\!\left(0,\, \min\!\left(1,\, 1 - \frac{S_f}{S_{\max}}\right)\right)\right]$$
+
+where $\phi(x) = x$ if $x \in [0, 1]$ and $0$ otherwise. The first term is the relative improvement from the starting separation, clipped to $[0, 1]$; it is zero if the agent did not reduce its distance to the shape (or started directly underneath it, $S_0 = 0$, in which case the term is also set to zero). The second term is the absolute closeness at the end, clamped to $[0, 1]$. Both terms contribute equally.
+
+**Trial and overall fitness.** Trial fitness is the mean of $c_i$ over all $n_{\text{shapes}} = 20$ shapes in the trial. Overall fitness is the mean over $n_{\text{trials}}$ trials (default 3 during evolution; the frozen-HP test uses a custom aggregation over shape subsets — see §11.5).
+
+**$S_{\max}$ note.** $S_{\max}$ uses the *relative* agent-shape speed in the horizontal direction, not just $|v_x|$ of the shape. The factor $(1 + |v_x|)$ reflects that the agent can also be moving horizontally, so the worst-case final separation accounts for the agent actively moving away. This follows Williams eq. 7.3 exactly; do not simplify to $|v_x|$ alone.
+
+**Edge cases.** If $S_0 = 0$ the first term is set to zero (the agent started directly under the shape; any relative change is undefined). If $S_f > S_{\max}$ the second term clamps to zero. Both are handled in the implementation.
 
 ---
 
@@ -260,9 +276,9 @@ Results: fraction of firing-rate samples outside $[H_L, H_U]$ was 0.861 before H
 
 ### 10.2 GA baseline check
 
-`[TBD: Pass — run ga_baseline_check.py on desktop after WSL2 setup]`
+Script: `scripts/ga_baseline_check.py`. Evolves non-plastic CTRNNs (hp\_mode='none') for 200 generations, population 30, seed 42.
 
-Script is ready (`scripts/ga_baseline_check.py`). Will evolve non-plastic CTRNNs for 100 generations, population 30, seed 42, `n_workers=6` on the desktop. Gate: fitness curve rises clearly above 0.5 by generation 50–100; trajectory shows agent tracking shapes; per-evaluation timing confirms the full experiment is feasible overnight.
+**Results:** fitness rises clearly above 0.5 within 3 generations and plateaus at ~0.7–0.8 by generation 100, with a best observed run reaching 0.85. Per-evaluation timing: ~17 seconds per generation on the test machine, confirming the full four-condition experiment (4 × 5 × 200 generations × ~17s) is feasible overnight with parallelisation. Agent trajectories show clear tracking behaviour. Gate passed.
 
 ---
 

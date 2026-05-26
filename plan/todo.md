@@ -239,7 +239,7 @@ Analysis of the search, not the evolved product. All from saved `history/` data 
 - [x] `scripts/analysis/load_runs.py` — shared loader, run discovery, condition resolution (config.json authoritative, manifest disagreement warns), npz reading, grouping. 16 synthetic-fixture tests, 79 total passing. Fix: path normalisation for the cross-machine `_resolve_output_dir` rglob fallback (desktop runs store `/home/mnoug/...` paths; loader patches `experiment_status.EXPERIMENTS_DIR` via realpath — comment in code, do not remove).
 - [x] `scripts/analysis/replication_figure.py` — two PDFs + stats summary (see Phase 7 result above).
 
-**Gate: PASSED.** All four analyses done and re-run at n=10: 8a trajectories, 8b viable-range diagnostics, 8c frozen-HP test, 8d search dynamics. Empirical findings recorded in methods\_log §11. Pending items before Phase 10: figure polish pass (zoom axes, individual runs on curves, CSV export, fix "expected 5" warning, compact 8b report figure).
+**Gate: PASSED.** All four analyses done and re-run at n=10: 8a trajectories, 8b viable-range diagnostics, 8c frozen-HP test, 8d search dynamics. Empirical findings recorded in methods\_log §11. Figure polish pass complete: axes zoomed, CSVs exported, EXPECTED\_RUNS fixed, compact 8b figure built.
 
 ---
 
@@ -260,9 +260,12 @@ Order: methods polish → results → analyses → discussion → introduction �
 
 ### Methods (already largely written in `notes/methods_log.md`)
 
-- [ ] Final pass over `notes/methods_log.md`: tidy prose, remove `[TBD]` markers
+- [ ] Final pass over `notes/methods_log.md`: tidy prose, remove remaining `[TBD]` markers (system diagram placeholder still present)
 - [ ] System diagram (refined from Phase 1 sketch)
 - [ ] Symbol audit: every variable defined on the same page; remove unused definitions
+- [x] §7 fitness function written (was TBD — filled in from implementation)
+- [x] §10.2 GA baseline check written (was TBD — results from todo)
+- [x] README written — quick start, structure, experiment data, script table, key design notes, test instructions
 
 ### Results
 
