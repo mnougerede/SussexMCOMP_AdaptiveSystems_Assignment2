@@ -193,7 +193,7 @@ $$c_i = \frac{1}{2}\left[\phi\!\left(1 - \frac{S_f}{S_0}\right) + \max\!\left(0,
 
 where $\phi(x) = x$ if $x \in [0, 1]$ and $0$ otherwise. The first term is the relative improvement from the starting separation, clipped to $[0, 1]$; it is zero if the agent did not reduce its distance to the shape (or started directly underneath it, $S_0 = 0$, in which case the term is also set to zero). The second term is the absolute closeness at the end, clamped to $[0, 1]$. Both terms contribute equally.
 
-**Trial and overall fitness.** Trial fitness is the mean of $c_i$ over all $n_{\text{shapes}} = 20$ shapes in the trial. Overall fitness is the mean over $n_{\text{trials}}$ trials (default 3 during evolution; the frozen-HP test uses a custom aggregation over shape subsets — see §11.5).
+**Trial and overall fitness.** Trial fitness is the mean of $c_i$ over all $n_{\text{shapes}} = 20$ shapes in the trial. Overall fitness is the mean over $n_{\text{trials}} = 10$ trials during evolution (the frozen-HP test uses a custom aggregation over shape subsets — see §11.5).
 
 **$S_{\max}$ note.** $S_{\max}$ uses the *relative* agent-shape speed in the horizontal direction, not just $|v_x|$ of the shape. The factor $(1 + |v_x|)$ reflects that the agent can also be moving horizontally, so the worst-case final separation accounts for the agent actively moving away. This follows Williams eq. 7.3 exactly; do not simplify to $|v_x|$ alone.
 
@@ -207,11 +207,11 @@ The GA operates over the real-valued genotype defined in §2.4: a vector of leng
 
 ### 8.1 Selection
 
-**Tournament selection with $K = 3$.** For each offspring slot, three individuals are drawn uniformly at random (with replacement, across the parental population) and the one with the highest fitness is selected to reproduce. This is repeated independently for each offspring.
+**Tournament selection with $K = 3$.** For each offspring slot, three individuals are drawn uniformly at random (without replacement, from the parental population) and the one with the highest fitness is selected to reproduce. This is repeated independently for each offspring.
 
 ### 8.2 Elitism
 
-The single best individual from the parental generation is copied unchanged into the next generation. The remaining $N - 1$ offspring are produced by tournament selection followed by mutation.
+The five best individuals from the parental generation are copied unchanged into the next generation (elitism of 5, matching Williams). The remaining $N - 5$ offspring are produced by tournament selection followed by mutation.
 
 ### 8.3 Mutation
 
@@ -231,7 +231,7 @@ Each allele independently drawn uniformly from $[-1, 1]$.
 
 ### 8.5 Population, generations, runs
 
-Target: population 20, generations 200, 5 runs per condition. Williams used 50 × 500 × 10, which exceeds the available compute budget at our per-evaluation runtime. The scaled-down parameters are documented in `plan/experiment_targets.json`. Expected wall time on the desktop (i5-9600K, 6 cores, `n_workers=6`): approximately 1 hour per condition.
+Actual runs: population 30, generations 200, 10 runs per condition (5 initial + 5 top-up runs). Williams used 50 × 500 × 10, which exceeds the available compute budget at our per-evaluation runtime. The scaled-down parameters are documented in `plan/experiment_targets.json`. Wall time on the desktop (i5-9600K, 6 cores, `n_workers=6`): approximately 1 hour per condition.
 
 ### 8.6 Reproducibility
 
@@ -245,7 +245,7 @@ Williams uses fitness-proportional roulette wheel selection with elitism of the 
 - **Selection pressure tuning.** $K$ directly controls selection pressure; $K = 3$ gives moderate pressure suitable for continuous optimisation problems.
 - **Robustness to premature convergence.** Roulette + elitism (Williams's combination) is known to cause rapid loss of population diversity, particularly when one individual gains an early fitness lead. Tournament selection avoids this failure mode.
 
-We retain the *idea* of elitism — a single best individual is preserved per generation — to prevent fitness regressions, while avoiding the diversity collapse that elitism + roulette together produce.
+We retain elitism — the five best individuals are preserved per generation, matching Williams — to prevent fitness regressions, while replacing the selection mechanism that combines with Williams's large elite to produce diversity collapse.
 
 **Implication for replication.** Because our GA differs from Williams's, our fitness curves will not match his quantitatively. The headline replication is at the level of *qualitative ordering of conditions*, not at the level of matching specific curves. This is appropriate: the project's central claims are about HP dynamics, not GA dynamics. If our qualitative ordering differs from Williams's, the difference is itself a substantive finding and is treated as such.
 
@@ -260,7 +260,7 @@ Following Williams Chapter 7 Experiments 1 and 2:
 3. **HP during behaviour** — HP active throughout every trial; no separate developmental phase.
 4. **HP during development and behaviour** — 6000 timesteps of HP before each trial, then HP continues during the trial.
 
-Williams uses 10 runs per condition; we use 5 (documented in `plan/experiment_targets.json`; see `notes/design_decisions.md` for compute rationale).
+Williams uses 10 runs per condition; we also use 10 (5 initial runs plus a 5-run top-up to reach n=10, documented in `plan/experiment_targets.json`).
 
 Each evolutionary run is initialised from a different random seed, recorded in the run's manifest entry. Raw per-generation data (best genotype, fitness statistics) are saved to disk per run; all plots are regenerated from saved data, not from live runs.
 
@@ -397,5 +397,5 @@ The available evidence points against settling as the primary driver: (a) the su
 - Stolting, J., Beer, R. D., & Izquierdo, E. J. (2023). Characterizing the role of homeostatic plasticity in central pattern generators.
 - Turney, P. (1996). Myths and legends of the Baldwin effect. *ICML 1996 Workshop on Evolutionary Computation and Machine Learning*.
 - Turrigiano, G. G. (1999). Homeostatic plasticity in neuronal networks: the more things change, the more they stay the same. *Trends in Neurosciences*, 22(5), 221–227.
-- Williams, H. P. (2006). *Homeostatic Adaptive Networks*. PhD thesis, University of Leeds.
+- Williams, H. T. P. (2006). *Homeostatic Adaptive Networks*. PhD thesis, University of Leeds.
 - Williams, H., & Noble, J. (2007). Homeostatic plasticity improves signal propagation in continuous-time recurrent neural networks. *BioSystems*, 87(2–3), 252–259.

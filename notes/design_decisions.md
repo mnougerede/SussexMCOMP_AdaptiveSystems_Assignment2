@@ -90,15 +90,15 @@ We choose (1). The Chapter 6 precedent is the strongest tie-break: Williams hims
 
 ## Genetic algorithm: tournament selection with elitism
 
-**Decision:** Tournament selection (K = 3) with elitism of the single best individual. Asexual reproduction; Gaussian mutation only, no crossover. Real-valued genotype of length 35 in $[-1, 1]$, mutation with reflection at boundaries.
+**Decision:** Tournament selection (K = 3) with elitism of the top five individuals, matching Williams. Asexual reproduction; Gaussian mutation only, no crossover. Real-valued genotype of length 35 in $[-1, 1]$, mutation with reflection at boundaries.
 
 **Reasoning:** Williams uses fitness-proportional roulette wheel selection with elitism of the top 5. Chris's feedback on the proposal flagged this combination as "a direct route to premature convergence" — fitness-proportional selection concentrates reproduction on the early lead, and elitism guarantees that lead survives, collapsing diversity. Williams's task is soft enough that this didn't break his result, but using the same GA risks (a) reproducing a known anti-pattern in our submission, (b) confounding any genuine HP-induced search difficulty with GA-induced convergence problems.
 
-Tournament selection is the EC textbook default for a reason: K controls selection pressure smoothly, the method is invariant to fitness scaling, and it does not concentrate reproduction on a single dominant individual. K = 3 is conventional and gives moderate selection pressure. Single-individual elitism prevents fitness regressions between generations without disabling the GA's ability to explore.
+Tournament selection is the EC textbook default for a reason: K controls selection pressure smoothly, the method is invariant to fitness scaling, and it does not concentrate reproduction on a single dominant individual. K = 3 is conventional and gives moderate selection pressure. Elitism of five (matching Williams) prevents fitness regressions between generations; the diversity-collapse problem Williams's GA has comes from roulette selection combined with large elitism, not from the elitism alone — replacing roulette with tournament breaks that dynamic.
 
 **Implications for results:**
 
-- We are *not* exactly replicating Williams's GA. Our methods section states this and gives the EC-literature justification. The qualitative comparison with Williams becomes "we used a better-conditioned GA and still see qualitative effects X and Y", which strengthens rather than weakens the replication of the underlying biology.
+- We match Williams on elitism (top 5) and mutation rate (3%) but replace his roulette-wheel selection with tournament selection. Our methods section states this and gives the EC-literature justification. The qualitative comparison with Williams becomes "we used a better-conditioned selection method and still see qualitative effects X and Y", which strengthens rather than weakens the replication of the underlying biology.
 - If our qualitative ordering differs from Williams's, this is itself an interesting result and should be reported. We do not need to match his fitness curves quantitatively to test the project's central claims (which are about HP dynamics, not GA dynamics).
 
 **Trade-off explicitly considered:** running both GAs in parallel would let us isolate GA effects from HP effects. We do not have the time or report space for this. Flag as future work.
