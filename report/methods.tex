@@ -1,0 +1,377 @@
+% =====================================================================
+% sections/methods.tex
+% Methods section -- input by report.tex. Contains section content only:
+% no preamble, no \documentclass, no \begin{document}.
+%
+% Spec constraints honoured here:
+%  - reproducible at the level of equations + pseudocode; NO program code
+%  - third-party algorithm (madvn/CTRNN) described as if our own
+%  - every equation numbered and referred to by number in the text
+%  - system diagram referenced (figure to be dropped in once drawn)
+% Methods is EXCLUDED from the 3000-word count.
+%
+% [DIAGRAM] / [PSEUDOCODE] markers flag where a figure or algorithm block
+% should be inserted. [CHECK] flags a value to confirm against source.
+% =====================================================================
+
+\section{Methods}
+\label{sec:methods}
+
+\subsection{System overview}
+\label{sec:methods:overview}
+
+The experimental system comprises four coupled components operating on
+distinct timescales. A \emph{falling-shape environment} presents circular
+objects that descend through the agent's field of view. An \emph{agent body},
+constrained to horizontal motion, carries an upward-facing fan of ray sensors
+and attempts to position itself beneath each falling shape. A
+\emph{continuous-time recurrent neural network} (CTRNN) maps sensor readings to
+motor commands. A \emph{homeostatic plasticity} (HP) module adjusts the
+network's weights and biases online, driving individual neurons towards a
+target firing-rate range. Overarching these, a genetic algorithm (GA) evolves
+the CTRNN's weights, biases and time constants across generations. The three
+adaptive processes act on separate timescales: the network state changes every
+timestep, HP modifies network parameters over the course of a trial, and the GA
+modifies genotypes over generations. HP itself is not evolved; its parameters
+are fixed across all runs. The experimental conditions vary \emph{when} HP acts,
+not whether it acts (Section~\ref{sec:methods:conditions}).
+
+% [DIAGRAM] system_diagram.pdf -- the three coupled loops (sensorimotor,
+% parameter-update/HP, selection/GA) on their three timescales. Spec asks for
+% system diagrams explicitly; this is the place for it.
+\begin{figure}[t]
+  \centering
+  % \includegraphics[width=0.9\linewidth]{figs/system_diagram.pdf}
+  \caption{System diagram. The sensorimotor loop (agent body, ray sensors,
+  CTRNN) runs every timestep; the homeostatic plasticity loop modifies network
+  parameters within a trial; the genetic algorithm modifies genotypes across
+  generations. \emph{[Placeholder --- figure to be inserted.]}}
+  \label{fig:system}
+\end{figure}
+
+\subsection{CTRNN model}
+\label{sec:methods:ctrnn}
+
+The controller is a continuous-time recurrent neural network of $N = 5$
+fully-connected nodes \parencite{beer1995}. Each node $i$ has an internal state
+$y_i \in \mathbb{R}$ and a firing rate $z_i \in (0, 1)$. The state evolves
+according to
+%
+\begin{equation}
+  \tau_{y,i}\, \dot{y}_i \;=\; -y_i \;+\; \sum_{j=1}^{N} w_{ji}\, z_j \;+\; I_i,
+  \label{eq:ctrnn-state}
+\end{equation}
+%
+where $\tau_{y,i} > 0$ is the membrane time constant of node $i$, $w_{ji}$ is
+the synaptic weight from presynaptic node $j$ to postsynaptic node $i$, $z_j$ is
+the firing rate of node $j$ (Equation~\ref{eq:ctrnn-activation}), and $I_i$ is
+the external input to node $i$, used to inject the sensor signal
+(Section~\ref{sec:methods:body}). The firing rate is the logistic sigmoid of the
+biased state,
+%
+\begin{equation}
+  z_i \;=\; \sigma(y_i + b_i) \;=\; \frac{1}{1 + e^{-(y_i + b_i)}},
+  \label{eq:ctrnn-activation}
+\end{equation}
+%
+where $b_i \in \mathbb{R}$ is the bias of node $i$. Neuron gain is fixed at $1$
+throughout, matching Williams's Chapter~7 specification, which does not evolve
+gains \parencite{williams2006}.
+
+Equation~\ref{eq:ctrnn-state} is integrated by the forward Euler method with a
+fixed step size $\Delta t = 0.2$ \parencite{williams2006}:
+%
+\begin{equation}
+  y_i(t + \Delta t) \;=\; y_i(t)
+  \;+\; \frac{\Delta t}{\tau_{y,i}}
+  \left( -y_i(t) + \sum_{j=1}^{N} w_{ji}\, z_j(t) + I_i(t) \right).
+  \label{eq:ctrnn-euler}
+\end{equation}
+
+Of the five nodes, three are designated sensor nodes (receiving the three ray
+sensors' signals as their external input) and two are motor nodes (whose firing
+rates drive the body). There are no interneurons. This minimal architecture is
+Williams's Chapter~7 specification; larger networks are explored in his later
+experiments and are noted as future work
+(Section~\ref{sec:discussion}).\footnote{The CTRNN integration was performed
+using the \texttt{madvn/CTRNN} package \parencite{candadai2020}, whose
+algorithm is exactly Equations~\ref{eq:ctrnn-state}--\ref{eq:ctrnn-euler}; it is
+described here as our own per the assignment requirements. Analysis-only tools
+(\texttt{numpy}, \texttt{scipy}, \texttt{matplotlib}) are identified in
+Section~\ref{sec:methods:analysis}.}
+
+\paragraph{Genotype encoding.}
+A genotype is a vector of $N^2 + 2N = 35$ real-valued alleles, each in
+$[-1, 1]$, mapped linearly onto the phenotypic parameter ranges of
+Table~\ref{tab:param-ranges}. The first $N^2 = 25$ alleles encode the weight
+matrix, the next $N = 5$ encode the biases, and the final $N = 5$ encode the
+time constants.
+
+\begin{table}[t]
+  \centering
+  \caption{Phenotypic parameter ranges. Each genotype allele lies in $[-1,1]$
+  and is mapped linearly onto the corresponding range.}
+  \label{tab:param-ranges}
+  \begin{tabular}{llc}
+    \toprule
+    Parameter & Symbol & Range \\
+    \midrule
+    Weights        & $w_{ji}$    & $[-10, 10]$ \\
+    Biases         & $b_i$       & $[-10, 10]$ \\
+    Time constants & $\tau_{y,i}$ & $[1, 4]$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Homeostatic plasticity}
+\label{sec:methods:hp}
+
+Homeostatic plasticity adjusts each neuron's incoming weights and its bias so as
+to drive the neuron's firing rate towards a target range $[H_L, H_U]$
+\parencite{dipaolo2000, williams2006}. For each node $i$, a plastic facilitation
+term $\rho_i \in [-1, 1]$ measures how far the firing rate lies outside the
+range:
+%
+\begin{equation}
+  \rho_i(z_i) \;=\;
+  \begin{cases}
+    (H_L - z_i)/H_L & \text{if } z_i < H_L, \\[2pt]
+    0 & \text{if } H_L \le z_i \le H_U, \\[2pt]
+    (H_U - z_i)/(1 - H_U) & \text{if } z_i > H_U.
+  \end{cases}
+  \label{eq:rho}
+\end{equation}
+%
+When the neuron fires below the lower bound, $\rho_i > 0$ and the rules below act
+to increase its input drive; when it fires above the upper bound, $\rho_i < 0$
+and they act to decrease it. Each afferent weight to node $i$ is then updated by
+%
+\begin{equation}
+  \tau_w\, \dot{w}_{ji} \;=\; \rho_i\, \lvert w_{ji} \rvert,
+  \label{eq:hp-weight}
+\end{equation}
+%
+and each bias by
+%
+\begin{equation}
+  \tau_b\, \dot{b}_i \;=\; \rho_i.
+  \label{eq:hp-bias}
+\end{equation}
+%
+The absolute value $\lvert w_{ji} \rvert$ in Equation~\ref{eq:hp-weight} is
+essential: it ensures that both excitatory and inhibitory weights grow in
+\emph{magnitude} when $\rho_i > 0$ and shrink when $\rho_i < 0$, so that it is
+the strength of a connection that is regulated, not its sign. Equations
+\ref{eq:hp-weight} and \ref{eq:hp-bias} are integrated with the same forward
+Euler step $\Delta t = 0.2$ as the network state. Within a timestep the order of
+operations is: inject sensor input, advance the network state by
+Equation~\ref{eq:ctrnn-euler}, recompute each $\rho_i$ from the updated firing
+rates, then apply Equations~\ref{eq:hp-bias} and~\ref{eq:hp-weight}.
+
+The homeostatic range and timescales take Williams's Chapter~7 values
+(Table~\ref{tab:hp-values}). Note that Williams uses $[0.25, 0.75]$ for the
+substrate-level analyses of Chapter~6 and in \textcite{williamsnoble2007}, but
+switches to $[0.2, 0.8]$ in Chapter~7; we use the Chapter~7 values consistently,
+including in the substrate-level sanity check
+(Section~\ref{sec:results:substrate}), to avoid mixing parameter sets across the
+project.
+
+\begin{table}[t]
+  \centering
+  \caption{Homeostatic plasticity parameters (Williams Chapter~7 values).}
+  \label{tab:hp-values}
+  \begin{tabular}{llc}
+    \toprule
+    Parameter & Symbol & Value \\
+    \midrule
+    Lower homeostatic bound & $H_L$    & $0.2$ \\
+    Upper homeostatic bound & $H_U$    & $0.8$ \\
+    Synaptic scaling timescale & $\tau_w$ & $40$ \\
+    Intrinsic plasticity timescale & $\tau_b$ & $20$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Agent body and sensors}
+\label{sec:methods:body}
+
+The agent is a circular body of radius $5$ constrained to move horizontally. Its
+horizontal position $x$ is driven by the difference between the two motor
+neurons' firing rates,
+%
+\begin{equation}
+  \tau_x\, \dot{x} \;=\; z_R - z_L,
+  \qquad \tau_x = 0.2,
+  \label{eq:body}
+\end{equation}
+%
+where $z_L$ and $z_R$ are the firing rates of the left and right motor nodes.
+The agent senses its environment through three ray sensors arranged in an
+upward-facing fan spanning $\pi/6$ radians. Each ray returns a reading that
+increases as an intersected shape draws nearer:
+%
+\begin{equation}
+  S \;=\; S_{\max}\,\frac{D_{\max} - D}{D_{\max}},
+  \qquad S_{\max} = 5,\;\; D_{\max} = 100,
+  \label{eq:sensor}
+\end{equation}
+%
+where $D$ is the distance along the ray to the nearest intersection with a
+shape, and $D_{\max}$ is the sensor's maximum range; a ray that intersects
+nothing within $D_{\max}$ returns zero. Each of the three sensor readings is fed
+as external input $I_i$ to one of the three sensor nodes
+(Equation~\ref{eq:ctrnn-state}).
+
+\subsection{Environment and trial structure}
+\label{sec:methods:env}
+
+Each fitness trial presents a sequence of falling circular shapes. A shape
+enters above the agent at a randomised horizontal offset and falls with a
+randomised horizontal and vertical velocity, descending until it passes the
+agent's vertical level. % [CHECK] shape radius and initial-height values
+The agent's task is to position its body so that the falling shape passes
+through it. At the start of each trial the network state, weights and biases are
+reset to the genotype-specified values, so that no adaptation carries across
+trials.
+
+In the conditions that include a developmental phase
+(Section~\ref{sec:methods:conditions}), each trial is preceded by a
+\emph{developmental period} of $6000$ timesteps during which the network
+receives zero external input ($I = 0$) and HP runs freely. Williams does not
+state the input regime during this period; we follow the Chapter~6 substrate-level
+precedent, in which HP is run on isolated networks, and use zero input. The
+period length ($1200$ simulation seconds at $\Delta t = 0.2$) is far longer than
+a trial, consistent with a ``settle the network's intrinsic properties''
+reading rather than a ``preview the task'' one.
+
+\subsection{Fitness function}
+\label{sec:methods:fitness}
+
+% [CHECK] Confirm the exact eq.7.3 components and the S_max numerator/denominator
+% against the thesis before final submission. Drafted from methods_log + todo.
+Fitness rewards an agent for reducing its horizontal distance to each shape over
+the course of that shape's fall and for finishing close to it. For a single
+shape, let $D_0$ be the initial horizontal agent--shape distance and $D_f$ the
+final distance at the moment the shape passes the agent. The per-shape score
+combines the reduction in distance with the final proximity, normalised by a
+per-shape maximum
+%
+\begin{equation}
+  S_{\max} \;=\; \bigl(1 + \lvert v_{x,\text{shape}} \rvert\bigr)
+  \cdot \frac{100}{\lvert v_{y,\text{shape}} \rvert},
+  \label{eq:smax}
+\end{equation}
+%
+where $v_{x,\text{shape}}$ and $v_{y,\text{shape}}$ are the shape's horizontal
+and vertical velocities, so that faster-falling or laterally-moving shapes
+(which are harder to catch) scale the score appropriately. The
+displacement-reduction contribution is clipped at zero so that an agent which
+increases its distance scores no worse than one that does not move. The trial
+fitness is the mean per-shape score over the shapes in the trial, and an
+individual's fitness is the mean over several independently-seeded trials to
+average out the randomised shape sequences. % [CHECK] number of shapes per trial
+% and trials per evaluation used in the final runs (todo says 20 shapes; trials
+% per eval = 3 in the runs, despite earlier "10 trials" planning note).
+
+\subsection{Genetic algorithm}
+\label{sec:methods:ga}
+
+The GA evolves a population of genotypes
+(Section~\ref{sec:methods:ctrnn}). Selection is by tournament of size $K = 3$:
+to produce each offspring, three individuals are drawn at random and the fittest
+is chosen as a parent. A single elite individual (the current best) is copied
+unchanged into the next generation. There is no crossover. Mutation is applied
+per allele with probability $p_m = 0.03$; a mutated allele is perturbed by
+Gaussian noise $\mathcal{N}(0, \sigma_m^2)$ with $\sigma_m = 0.1$, and values
+that fall outside $[-1, 1]$ are reflected back into range.
+
+This GA differs deliberately from Williams's, which used rank-based
+roulette-wheel selection with an elite of five and a mixed mutation scheme.
+Tournament selection with a single elite is the standard choice in evolutionary
+computation and avoids the rapid loss of diversity that roulette-wheel selection
+with a large elite can cause; the consequences of this choice for comparison
+with Williams are taken up in the discussion
+(Section~\ref{sec:discussion}). The per-allele mutation rate matches Williams's
+$3\%$.
+
+% [PSEUDOCODE] A short algorithm block for one GA generation would satisfy the
+% spec's "pseudocode or flowcharts" preference cleanly. Suggested:
+%   for each generation:
+%     evaluate fitness of every individual (Sec. fitness)
+%     copy the single fittest individual to the next generation (elitism)
+%     while next generation not full:
+%       parent <- argmax fitness of K=3 random individuals
+%       child  <- copy(parent)
+%       for each allele: with prob p_m, allele += N(0, sigma_m^2); reflect to [-1,1]
+%       add child to next generation
+% Add via the algorithm2e or algorithmicx package if you want it typeset.
+
+\subsection{Experimental conditions}
+\label{sec:methods:conditions}
+
+The four conditions differ only in when HP is active:
+%
+\begin{description}[leftmargin=2em, itemsep=2pt]
+  \item[No HP.] HP never acts. The genotype-specified parameters are used
+    unchanged throughout each trial.
+  \item[Dev only.] HP runs during the developmental period before each trial
+    and is then frozen for the trial itself: the developed weights and biases
+    are held fixed while behaviour is evaluated.
+  \item[Behaviour only.] There is no developmental period; HP runs from the
+    genotype-specified parameters throughout the trial.
+  \item[Both.] HP runs during the developmental period and continues to run
+    throughout the trial.
+\end{description}
+%
+``Frozen'' HP means the plasticity update is disabled while the current weights
+and biases are retained at their adapted values; it does not reset parameters to
+the genotype. Williams terms this adiabatic elimination. The same four
+conditions define both the evolutionary runs and the frozen-HP test
+(Section~\ref{sec:methods:analysis}).
+
+\subsection{Analysis methods}
+\label{sec:methods:analysis}
+
+Four analyses are applied to the evolved populations; three examine the evolved
+controllers and one the search itself. All operate on data saved during the
+evolutionary runs and re-evaluations, and all plots are regenerated from saved
+data rather than live runs. Analysis tooling is \texttt{numpy},
+\texttt{scipy} (statistics), \texttt{matplotlib} (figures) and \texttt{pandas};
+these are used only for analysis and so are not described at the algorithmic
+level.
+
+\paragraph{Behavioural trajectories.}
+For a representative individual per condition, the agent and shape positions and
+the five neurons' firing rates are recorded at every timestep across a small set
+of shared-seed trials, allowing direct comparison of the neural activity that
+produces the catching behaviour.
+
+\paragraph{Viable-range diagnostics.}
+For each neuron at sampled generations, two quantities are computed from a
+replayed trial: the fraction of timesteps the neuron's firing rate lies within
+$[H_L, H_U]$ (denoted $\mathrm{frac}_V$), and an entry--exit rate counting
+transitions between the in-range and out-of-range states per $1000$ timesteps.
+Each is computed both with HP active and with HP frozen, so that the
+contribution of ongoing plasticity to viable-range operation can be isolated.
+
+\paragraph{Frozen-HP test.}
+This test asks whether the behaviour evolved under HP has been genetically
+assimilated, i.e.\ whether it persists once HP is removed. Each evolved
+individual is evaluated twice: once with HP active and once with HP frozen by
+adiabatic elimination. For \emph{Behaviour only}, HP runs for an initial
+settling window of the first ten shapes and is then frozen, with fitness
+measured over the remaining shapes; for \emph{Both}, HP is frozen at the end of
+the developmental period and fitness is measured over the trial. \emph{Dev only}
+and \emph{No HP} serve as controls, for which the frozen variant should produce
+no change because HP was already inactive during their behaviour. To establish
+the measurement noise against which a fitness drop is judged significant, each
+individual is additionally re-evaluated $20$ times with different shape-sequence
+seeds and HP active; a frozen-HP drop is reported in units of this
+within-individual standard deviation.
+
+\paragraph{Search dynamics.}
+To characterise the larger adaptive system, the population's best fitness, mean
+fitness and fitness spread (the standard deviation of fitnesses across the
+population) are tracked across generations for each condition. The fitness
+spread serves as a diversity proxy; genotype-level diversity is not recovered
+because only population fitnesses, not genotypes, are retained per generation.

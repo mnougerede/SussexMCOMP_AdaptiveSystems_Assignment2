@@ -1,0 +1,189 @@
+% =====================================================================
+% Adaptive Systems -- Assignment 2 report
+% Homeostatic plasticity in CTRNNs: replicating Williams (2006) Ch.7
+% and extending with a frozen-HP genetic-assimilation test.
+%
+% Max de la Nougerede, University of Sussex, MComp Adaptive Systems 2025/26.
+%
+% Compile: pdflatex -> biber -> pdflatex -> pdflatex
+%
+% WORD BUDGET (3000 words; methods, captions, bibliography, appendices
+% are all EXCLUDED from the count per the spec):
+%   Abstract        ~150
+%   Introduction    ~700
+%   Results/analyses ~1300
+%   Discussion      ~800
+%   (No conclusion -- spec says one is rarely needed.)
+% Methods is unbudgeted: write it as long as reproducibility requires.
+% =====================================================================
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in,top=0.9in,bottom=0.9in]{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}            % professional tables
+\usepackage{enumitem}
+\usepackage[T1]{fontenc}
+\usepackage{helvet}              % sans-serif for headings only
+\usepackage[expansion=false]{microtype}
+\usepackage{parskip}            % no indent, space between paragraphs
+\usepackage{caption}
+\usepackage[hidelinks]{hyperref}
+
+% Sans-serif section headings (body stays roman).
+\usepackage{sectsty}
+\allsectionsfont{\sffamily}
+
+% Bibliography: biblatex + biber, author-year science style.
+\usepackage[english]{babel}
+\usepackage{csquotes}            % recommended companion to biblatex
+\usepackage[backend=biber, style=authoryear, sorting=nyt, maxcitenames=2, uniquelist=false]{biblatex}
+\addbibresource{references.bib}
+
+% Optional: uncomment if you typeset the GA pseudocode block in methods.
+% \usepackage[ruled,vlined]{algorithm2e}
+
+% Caption styling: bold label, small font.
+\captionsetup{labelfont=bf, font=small, skip=6pt}
+
+\title{\sffamily Homeostatic plasticity and the evolvability of CTRNN
+ball-catching agents: a frozen-HP test for genetic assimilation}
+\author{Max de la Nougerede}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+% =====================================================================
+% ABSTRACT  (~150 words)  -- write LAST
+% =====================================================================
+\begin{abstract}
+% One short paragraph: what you did, why it matters, main result + conclusion.
+% Lead with the assimilation verdict -- that is the finding that makes a
+% selective reader want to read on.
+\end{abstract}
+
+% =====================================================================
+% 1. INTRODUCTION  (~700 words)  -- write SECOND-TO-LAST
+% =====================================================================
+\section{Introduction}
+\label{sec:intro}
+
+% Planned thread (plant here, pay off in Discussion):
+%  (a) Working definition of adaptivity -- Di Paolo grounded in Ashby.
+%      State it explicitly; you must refer back to it in the discussion.
+%  (b) HP background: biological (Turrigiano) + computational
+%      substrate-level gains (Williams & Noble 2007).
+%  (c) The substrate-vs-evolvability tension: HP helps the substrate, yet
+%      Williams (2006) found online HP did NOT improve evolved fitness.
+%  (d) Baldwin-effect frame: lifetime adaptation can guide evolution and
+%      become genetically assimilated (Baldwin 1896; Hinton & Nowlan 1987;
+%      Mayley 1996; Turney 1996). Dev-only = the Hinton & Nowlan setup;
+%      behaviour-HP interleaves lifetime adaptation with fitness measurement.
+%  (e) Stolting et al. (2023) as the candidate mechanism by which
+%      assimilation can fail.
+%  (f) Contribution statement: replication of Williams Ch.7 across four HP
+%      conditions + four new analyses (3 of the controller, 1 of the search),
+%      the central one being the frozen-HP / assimilation test.
+
+
+% =====================================================================
+% 2. METHODS  (UNBUDGETED -- excluded from word count)
+% =====================================================================
+% Section content lives in sections/methods.tex (kept separate so the
+% word-counted body can be compiled/counted independently of methods).
+\input{sections/methods}
+
+
+% =====================================================================
+% 3. RESULTS AND ANALYSES  (~1300 words)
+% =====================================================================
+% Spec (EA clause): focus analyses on the LARGER adaptive system -- EA,
+% problem space, fitness function, population, and the landscapes they
+% codetermine. Build everything toward the two main points:
+%   MP1: genetic assimilation has NOT occurred (frozen-HP test).
+%   MP2: the Dev-only paradox -- best-performing yet most HP-dependent.
+\section{Results and analyses}
+\label{sec:results}
+
+\subsection{Substrate-level sanity check}
+\label{sec:results:substrate}
+% 0.861 -> 0.477 (HP on) -> 0.539 (HP off). Establishes HP works and that
+% some regulation persists, foreshadowing the frozen-HP test.
+
+\subsection{Replication: four-condition evolvability}
+\label{sec:results:replication}
+% Fitness curves (mean +/-1 SD, faint runs) + final-fitness box plot.
+% KW H=17.71, p=0.0005; Dev only sig. > all others (Bonferroni). Online-HP
+% NOT worse than No HP -- divergence from Williams; flag as a discussion hook.
+% Include the search-REPLICATION read here (early progress, run consistency).
+
+\subsection{Behavioural trajectories}
+\label{sec:results:trajectories}
+% 2-4 representative panels (likely Dev only vs Behaviour only). Blue/cream/red
+% = below/in/above viable range. Motivates the two 8b metrics.
+
+\subsection{Viable-range diagnostics across evolution}
+\label{sec:results:viablerange}
+% frac_V and entry-exit rate, training vs HP-off. Summary table.
+% Headline: no HP condition holds neurons in range without HP.
+
+\subsection{Frozen-HP test: has assimilation occurred?}  % <-- MP1 lands here
+\label{sec:results:frozenhp}
+% Drops in baseline-SD units; controls near zero; collapse counts
+% (5/10 Dev, 3/10 Behaviour, 3/10 Both). Verdict: assimilation has not
+% occurred in any HP condition.
+
+\subsection{Search dynamics of the larger adaptive system}
+\label{sec:results:searchdynamics}
+% Population best/mean/spread per generation. "Differ in WHERE they converge,
+% not whether/how fast." Serves the spec's EA clause directly. Consider
+% whether this should frame the section rather than close it.
+
+
+% =====================================================================
+% 4. DISCUSSION  (~800 words)
+% =====================================================================
+% Do NOT list the spec's questions and answer them in turn (spec warns
+% against this). Weave. Build to MP1 + MP2. Required coverage:
+%   - further work
+%   - how adaptive is the system, per the intro's definition
+%   - connection to the wider adaptive-systems area
+%   plus at least one of the hypothesis-support / new-hypothesis options.
+\section{Discussion}
+\label{sec:discussion}
+
+% Suggested flow:
+%  1. Assimilation verdict as the headline (MP1): tie frozen-HP drop to the
+%     Baldwin frame; HP is constitutive, not merely helpful.
+%  2. The Dev-only paradox (MP2): best yet most HP-dependent -- explain via
+%     the selection regime (GA never saw un-developed phenotypes).
+%  3. Stolting mechanism as candidate explanation for assimilation failure.
+%  4. Search-dynamics framing: HP changes the genotype-phenotype map across a
+%     FIXED landscape (NOT a "moving landscape" -- Chris's correction).
+%  5. Adaptivity revisited: which timescales are active in each condition;
+%     HP as cybernetic negative feedback / Ashby ultrastability.
+%  6. Divergence from Williams (online HP not worse) -- GA-conditioning artefact?
+%  7. Limitations: single task, fixed tau_w/tau_b, n=10, no discrimination,
+%     developmental-settling confound (one honest sentence).
+%  8. Future work: discrimination; timescale-separation sweep; alternative
+%     rho shapes; exact-Williams-GA comparison; larger networks.
+
+
+% =====================================================================
+% BIBLIOGRAPHY  (excluded from word count)
+% =====================================================================
+\printbibliography
+\label{sec:refs}
+
+
+% =====================================================================
+% APPENDICES  (excluded; must NOT carry main-narrative material)
+% =====================================================================
+% \appendix
+% \section{Supplementary figures}
+% e.g. full per-neuron viable-range grids, full frozen-HP per-individual table.
+
+\end{document}
