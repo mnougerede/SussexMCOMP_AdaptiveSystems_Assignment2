@@ -267,40 +267,37 @@ and vertical velocities, so that faster-falling or laterally-moving shapes
 (which are harder to catch) scale the score appropriately. The
 displacement-reduction contribution is clipped at zero so that an agent which
 increases its distance scores no worse than one that does not move. The trial
-fitness is the mean per-shape score over the shapes in the trial, and an
-individual's fitness is the mean over several independently-seeded trials to
-average out the randomised shape sequences. % [CHECK] number of shapes per trial
-% and trials per evaluation used in the final runs (todo says 20 shapes; trials
-% per eval = 3 in the runs, despite earlier "10 trials" planning note).
+fitness is the mean per-shape score over the $20$ shapes in the trial, and an
+individual's fitness is the mean over $10$ independently-seeded trials to
+average out the randomised shape sequences.
 
 \subsection{Genetic algorithm}
 \label{sec:methods:ga}
 
 The GA evolves a population of genotypes
 (Section~\ref{sec:methods:ctrnn}). Selection is by tournament of size $K = 3$:
-to produce each offspring, three individuals are drawn at random and the fittest
-is chosen as a parent. A single elite individual (the current best) is copied
-unchanged into the next generation. There is no crossover. Mutation is applied
-per allele with probability $p_m = 0.03$; a mutated allele is perturbed by
-Gaussian noise $\mathcal{N}(0, \sigma_m^2)$ with $\sigma_m = 0.1$, and values
-that fall outside $[-1, 1]$ are reflected back into range.
+to produce each offspring, three individuals are drawn without replacement and
+the fittest is chosen as a parent. The five fittest individuals from the current
+generation are copied unchanged into the next generation (elitism of five). There
+is no crossover. Mutation is applied per allele with probability $p_m = 0.03$; a
+mutated allele is perturbed by Gaussian noise $\mathcal{N}(0, \sigma_m^2)$ with
+$\sigma_m = 0.1$, and values that fall outside $[-1, 1]$ are reflected back into
+range.
 
-This GA differs deliberately from Williams's, which used rank-based
-roulette-wheel selection with an elite of five and a mixed mutation scheme.
-Tournament selection with a single elite is the standard choice in evolutionary
-computation and avoids the rapid loss of diversity that roulette-wheel selection
-with a large elite can cause; the consequences of this choice for comparison
-with Williams are taken up in the discussion
-(Section~\ref{sec:discussion}). The per-allele mutation rate matches Williams's
-$3\%$.
+This GA matches Williams's elitism of five and per-allele mutation rate of $3\%$,
+but replaces his rank-based roulette-wheel selection with tournament selection.
+Tournament selection is the standard choice in evolutionary computation and is
+less prone to the early fitness-variance collapse that roulette-wheel selection
+can cause; the consequences for comparison with Williams are discussed in
+Section~\ref{sec:discussion}.
 
 % [PSEUDOCODE] A short algorithm block for one GA generation would satisfy the
 % spec's "pseudocode or flowcharts" preference cleanly. Suggested:
 %   for each generation:
 %     evaluate fitness of every individual (Sec. fitness)
-%     copy the single fittest individual to the next generation (elitism)
+%     copy the 5 fittest individuals unchanged to the next generation (elitism)
 %     while next generation not full:
-%       parent <- argmax fitness of K=3 random individuals
+%       parent <- argmax fitness of K=3 individuals drawn without replacement
 %       child  <- copy(parent)
 %       for each allele: with prob p_m, allele += N(0, sigma_m^2); reflect to [-1,1]
 %       add child to next generation
