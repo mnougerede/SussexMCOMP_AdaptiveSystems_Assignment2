@@ -180,7 +180,7 @@ All six result figures are inside `\begin{figure}...\end{figure}` blocks in `sec
 The reference snippets below still say "elitism of 1" in the GA spec. This is wrong — the actual runs used elitism of 5. Update this line when you update this file.
 
 ### Key numerical results
-- Substrate check: 86.1% → 47.7% outside [H_L, H_U] during HP; 53.9% after HP off
+- Substrate check: 86.1% → 53.2% outside [H_L, H_U] during HP; 59.4% after HP off
 - Final fitnesses (n=10): No HP 0.674 (SD 0.096), Dev only 0.838 (SD 0.059), Behaviour only 0.709 (SD 0.097), Both 0.675 (SD 0.077)
 - KW: H=17.71, p=0.0005. Dev only sig. > all others (Bonferroni p_bonf=0.0035 vs No HP and Both, p_bonf=0.0217 vs Behaviour only).
 - Frozen-HP drops: No HP within ±1 SD (noise); Dev only 5.6–28.8 SD, 5/10 complete collapses; Behaviour only 0.2–17.4 SD, 3/10 complete or near-complete collapses; Both 3/10 complete collapses, 4/10 moderate drops.
