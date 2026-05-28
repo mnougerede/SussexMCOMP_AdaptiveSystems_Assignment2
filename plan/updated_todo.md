@@ -1,162 +1,190 @@
-# Assignment 2 — CTRNN Homeostatic Plasticity: To-Do List
-
-**Submission deadline:** 28 May 2026 (late period), 4 pm.
-**Today:** 27 May 2026. ~24 hours remain.
+# Assignment 2 — Submission checklist
+**Deadline: 28 May 2026, 4 pm. ~5 hours remain.**
 
 ---
 
-## What is done
+## STATUS: What is actually done
 
-- **Phases 0–8:** All empirical and analysis work is complete at n=10.
-- **Phase 10 infrastructure:** `report.tex` (master), `sections/methods.tex` (draft), `references.bib` (14 entries). Multi-section `\input` structure in place.
-- **Methods section:** drafted and static-validated (equations 1–9 balanced, all cite keys present, cross-refs clean). Handed to Max for review.
+### Empirical work — complete
+- All 20 runs (4 conditions × 5 runs × 2 batches = 10 per condition) at n=10. ✓
+- All analysis scripts run: replication figure, search dynamics, behavioural trajectories, viable-range diagnostics, frozen-HP test. ✓
 
----
+### Report — all sections drafted
+- `report.tex` — master with `\input` wiring for all four sections ✓
+- `references.bib` — 14 entries ✓
+- `sections/methods.tex` — drafted, static-validated, corrected (elitism 5, n_trials 10, without replacement) ✓
+- `sections/results.tex` — drafted, static-validated ✓
+- `sections/discussion.tex` — drafted, static-validated ✓
+- `sections/introduction.tex` — drafted, static-validated ✓
+- Abstract — drafted inline in `report.tex` ✓
+- Word count: 2708 / 3000 (~290 words headroom) ✓
 
-## What still needs doing — ordered by criticality
-
-### TODAY (report writing — the critical path)
-
-These are the things that must happen before 4 pm tomorrow. Writing order: results → analyses prose → discussion → introduction → abstract. Methods is already drafted.
-
-#### 1. Review and finalise `sections/methods.tex`
-
-- [ ] Read the draft and correct anything wrong. Key items to check:
-  - [ ] `[CHECK]` shape radius and initial height — confirm against your `config.json` or `shapes.py`
-  - [ ] `[CHECK]` fitness function: confirm eq. 7.3 form against `src/environment/fitness.py` — the draft describes it correctly per your design decisions but you should verify the $S_{\max}$ formulation
-  - [ ] `[CHECK]` 3 trials per evaluation (scale decision §7d) — draft says "several"; fill in the exact number
-  - [ ] System diagram placeholder — figure commented out; insert once you have the diagram, or cut the placeholder if you won't draw it in time
-  - [ ] GA pseudocode — `[PSEUDOCODE]` comment in the draft; add an `algorithm2e` block or remove the comment
-- [ ] Once happy, this section is done
-
-#### 2. Write `sections/results.tex`
-
-Create `sections/results.tex`, `\input` it in `report.tex`. All figures already exist. This is mostly: one figure, one paragraph each. Suggested subsection order matching the report scaffold:
-
-- [ ] **Substrate-level sanity check** — `figs/substrate_check.pdf`; one short paragraph: 86.1% → 47.7% → 53.9%. Foreshadows frozen-HP test.
-- [ ] **Replication: four-condition evolvability** — `figs/replication_fitness_curves.pdf` + `figs/replication_final_box.pdf`; KW H=17.71, p=0.0005; Dev only sig. > all at Bonferroni. Note the online-HP-not-worse divergence from Williams.
-- [ ] **Search replication** — dev\_only quicker early progress visible in search\_dynamics figure; record this as part of the replication read.
-- [ ] **Behavioural trajectories** — 2–4 panels from `figs/behavioural_trajectories.pdf`; blue/cream/red meaning in caption.
-- [ ] **Viable-range diagnostics** — compact figure (if built); key numbers from methods\_log §11.5.
-- [ ] **Frozen-HP test** — `figs/frozen_hp_scatter.pdf` + `figs/frozen_hp_drop.pdf`; complete collapse individuals noted; assimilation verdict stated here.
-- [ ] **Search dynamics** — `figs/search_dynamics_population.pdf`; conditions differ in *where* they converge, not whether/how fast.
-
-#### 3. Write `sections/discussion.tex`
-
-Create `sections/discussion.tex`, `\input` it in `report.tex`. Pre-planned in methods\_log §11.4 and §11.5 — the discussion almost writes itself from those sections. Planned thread order:
-
-- [ ] Assimilation verdict as the headline (MP1): HP is constitutive, not merely helpful — Baldwin frame payoff
-- [ ] Dev only paradox (MP2): best-performing yet most HP-dependent; selection regime explanation
-- [ ] Stolting mechanism as candidate explanation for assimilation failure
-- [ ] Search-dynamics framing: HP changes the genotype-phenotype map, not the fitness landscape
-- [ ] Adaptivity revisited: which timescales are active per condition; Ashby/ultrastability mapping
-- [ ] Divergence from Williams: online-HP not worse — GA-conditioning candidate explanation
-- [ ] Limitations (one honest paragraph): single task, fixed timescales, n=10, no discrimination, developmental-settling confound
-- [ ] Future work: discrimination; timescale-separation sweep; alternative ρ shapes; exact-Williams-GA comparison
-
-#### 4. Write `sections/introduction.tex`
-
-Create `sections/introduction.tex`, `\input` it in `report.tex`. Write this after discussion so you know exactly what needs to be planted here.
-
-- [ ] Adaptivity definition — Di Paolo grounded in Ashby
-- [ ] HP background — biological (Turrigiano) + computational substrate-level gains (Williams & Noble 2007)
-- [ ] Substrate-vs-evolvability tension as the motivating question
-- [ ] Baldwin-effect framing: lifetime adaptation can guide evolution; assimilation as the question
-- [ ] Contribution statement: replication + four analyses, central one being the frozen-HP / assimilation test
-
-#### 5. Write the abstract
-
-- [ ] One paragraph, ~150 words. Write last. Lead with the assimilation verdict.
+### Notes — corrected
+- `methods_log.md` — elitism, n_trials, pop_size, replacement, run count, Williams initials all corrected ✓
+- `design_decisions.md` — GA elitism and reasoning corrected ✓
 
 ---
 
-### BEFORE SUBMITTING (polish and codebase)
+## REMAINING TASKS — in order of priority
 
-These can be done in parallel with or just after writing. They are not blocking the writing, but they are required for submission.
+### 1. FIGURES — run missing scripts first (do this now)
+These are blocking because the report references them by filename.
 
-#### Figure polish (one remaining item)
+| Figure file | Status | Action |
+|---|---|---|
+| `figs/substrate_check.pdf` | **MISSING** | Run the substrate check script (check exact name in `scripts/`) |
+| `figs/viable_range_compact.pdf` | **UNKNOWN** | Check if it exists. If not: `uv run python scripts/analysis/viable_range_compact.py` |
+| `figs/replication_fitness_curves.pdf` | Should exist | Confirm |
+| `figs/replication_final_box.pdf` | Should exist | Confirm |
+| `figs/behavioural_trajectories.pdf` | Should exist | Confirm |
+| `figs/frozen_hp_scatter.pdf` | Should exist | Confirm |
+| `figs/frozen_hp_drop.pdf` | Should exist | Confirm |
+| `figs/search_dynamics_population.pdf` | Should exist | Confirm |
 
-- [ ] **Viable-range compact figure** — `scripts/analysis/viable_range_compact.py`. Check whether this already ran and exists at `figs/viable_range_compact.pdf`. If not, run it. This is the report-body figure for §8b.
-- [ ] `[VERIFY]` The `EXPECTED_RUNS` fix in `replication_figure.py` — todo says "should be updated to expected 10"; check whether this was done in the figure-polish pass that completed Phase 8.
+Also check: does `replication_figure.py` have `EXPECTED_RUNS = 10`? If it still says 5, fix it and regenerate.
 
-#### Final polish (report)
-
-- [ ] All figures referenced from prose by `\ref`
-- [ ] All equations referenced by number in the text
-- [ ] All citations in `references.bib`; no uncited entries; no unreferenced citations
-- [ ] `[VERIFY]` four bib entries in `references.bib` have `[VERIFY]` markers; confirm against sources:
-  - `williams2005` — exact proceedings title/pages
-  - `williamsnoble2007` — title matches the scanned PDF
-  - `stolting2023` — author first names and proceedings details
-  - `dipaolo2000` — venue is SAB 2000 proceedings (`@inproceedings`), confirm pages
-- [ ] LaTeX quote characters: `''text''` not `"text"`
-- [ ] Compile clean: `pdflatex → biber → pdflatex → pdflatex`, no errors or overfull hboxes that break layout
-
-#### Codebase tidy
-
-- [ ] `git status` — no uncommitted working-tree changes before tagging
-- [ ] Final `pytest` run — all tests passing on `main`
-- [ ] Check `main` branch is the submission branch
-- [ ] Tag the submission commit: `git tag submission`
-- [ ] Push tag: `git push origin submission`
-- [ ] Verify the GitHub repo is public (or accessible to Chris)
-
-#### System diagram
-
-- [ ] Draw the system diagram (three coupled loops: sensorimotor, HP parameter-update, GA selection). Either:
-  - Insert as `figs/system_diagram.pdf` and uncomment the `\includegraphics` in `sections/methods.tex`, or
-  - Accept the figure is missing and remove the placeholder comment from the methods draft
+Once all figures are confirmed on disk, uncomment the `\includegraphics` lines in `sections/results.tex` (6 figure environments, all currently commented out).
 
 ---
 
-## Items NOT on the critical path (do not spend time on these)
+### 2. METHODS — two remaining checks (quick)
 
-- Phase 9 optional extensions (oscillation analysis, genotype-freeze variant)
-- Discrimination task
-- Timescale-separation sweep
-- Exact-Williams-GA comparison
-- Further runs
+- [ ] Confirm shape radius and initial height in `sections/methods.tex` match your config. The draft says radius 10, spawn y=100 (from methods log §6) — verify these are correct.
+- [ ] System diagram decision:
+  - **If yes (time permitting):** save as `figs/system_diagram.pdf`, uncomment the `\includegraphics` block in `sections/methods.tex` §2.1.
+  - **If no (recommended):** delete the entire commented-out `\begin{figure}...\end{figure}` block in `sections/methods.tex` §2.1. A missing diagram is a minor deduction; a broken comment left in is avoidable noise.
+- [ ] GA pseudocode block: currently a comment only — will not appear in PDF. No action required. Delete the comment if you want to tidy the file.
 
 ---
 
-## Reference snippets (unchanged — for writing reference)
+### 3. CONTENT REVIEW PASS — section by section
+
+Read each file and check the specific items below.
+
+#### `sections/introduction.tex`
+
+Logical flow:
+- [ ] Para 1: adaptivity definition clearly states "maintaining essential variables within viable bounds across multiple timescales." This exact phrase is referred back to in the discussion.
+- [ ] Para 2: HP established as cybernetic negative feedback before the evolvability question is raised. The discussion uses that exact phrase — it must be planted here.
+- [ ] Para 3: the claim "HP left running during behaviour did not improve evolved fitness, and could make matters worse" — verify this is what Williams reports, not what your replication found. Your data shows Both ≈ No HP (not worse). Make sure you are describing Williams's result here, not your own.
+- [ ] Para 5 final sentence: "the result --- that assimilation has not occurred in any HP condition --- organises the discussion that follows." Decide whether to keep (previews verdict, standard science writing) or cut (withholds result for suspense). Either is defensible.
+
+Language:
+- [ ] `\emph{developmental}` and `\emph{during}` (para 3, contrast pair) — consider rewriting to let sentence structure carry the contrast rather than italics: "HP applied as a developmental phase improved evolved performance; HP running during behaviour did not."
+- [ ] Em-dashes: 5 uses, all legitimate parenthetical. ✓
+
+#### `sections/results.tex`
+
+Logical flow:
+- [ ] Substrate check: foreshadows frozen-HP test at end of paragraph. ✓
+- [ ] Frozen-HP paragraph: collapse counts (5/10 Dev only, 3/10 Behaviour only, 3/10 Both) — cross-check these against `figs/frozen_hp_results.csv` before submitting. These are specific numbers in the report.
+- [ ] Frozen-HP paragraph: the todo reference snippets say "Dev only 5.6–21.2 SD (2 complete collapses)" but the methods log §11.5 says "5/10 collapses." The draft uses 5/10. Confirm which is correct.
+
+Language:
+- [ ] `\emph{do}` in "what the evolved controllers actually do" — casual register; consider cutting the italics.
+- [ ] `\emph{when the plasticity acts before evaluation}` (line 103) — over-long for emphasis. Rewrite as plain prose.
+- [ ] Condition names (`\emph{Dev only}` etc.) used consistently throughout. ✓
+
+#### `sections/discussion.tex`
+
+Logical flow:
+- [ ] Opens by paying off the Baldwin frame from the intro. ✓
+- [ ] Refers back to the adaptivity definition by name. ✓
+- [ ] Settling confound acknowledged in one paragraph. ✓
+- [ ] "HP does not change the shape of the fitness landscape, which is fixed by the evaluation procedure" — this is the key correction to the proposal's "moving landscape" wording. ✓
+- [ ] Future-work paragraph: four directions. Check you are comfortable defending all of them if asked.
+- [ ] The Both puzzle explanation: "ongoing plasticity works against the developmentally established configuration" — stated as most parsimonious, not demonstrated. ✓
+
+Language:
+- [ ] Em-dash used as colon substitute in the adaptivity paragraph: "timescales --- the HP conditions are more adaptive." If you want a more formal register, replace with a colon.
+- [ ] "in a precise and somewhat uncomfortable sense" — good intellectual honesty signal. Keep.
+- [ ] "load-bearing rather than corrective" — good concrete image. Keep.
+
+#### `sections/methods.tex`
+
+- [ ] Shape geometry: radius 10, spawn y=100 — confirm correct.
+- [ ] §8.7 justification: now says we match Williams on elitism and mutation rate, differ only on selection. ✓
+- [ ] The `[CHECK]` and `[PSEUDOCODE]` markers are comments — they will not appear in the compiled PDF. You can leave or delete them.
+
+---
+
+### 4. FORMAT PASS — mechanical
+
+- [ ] **Condition name consistency.** Every occurrence of No HP / Dev only / Behaviour only / Both as a condition label should be `\emph{}`. Check introduction and discussion match the consistent treatment in results.
+- [ ] **Hyphenation consistency.** "Behaviour only" (label, no hyphen) vs "behaviour-only HP" (adjective, hyphen). Pick one pattern and apply it throughout.
+- [ ] **Figure captions.** Before uncommenting `\includegraphics` lines, check each caption is self-contained: states what SD bands mean, states colour scheme for heatmaps, wraps any `\pm` in `$...$`.
+- [ ] **No straight double-quotes in LaTeX source.** Run: `grep -n '"' sections/*.tex` — any outside math/comments should be ` ``text'' `.
+- [ ] **`dipaolo2000` bib entry type.** Currently `@article` — should be `@inproceedings`. Fix: change to `@inproceedings` and add `booktitle = {From Animals to Animats 6: Proceedings of the Sixth International Conference on Simulation of Adaptive Behavior}` and `publisher = {MIT Press}`.
+- [ ] **Uncited bib entries:** `williams2005`, `beer1996`, `turney1996` are in the bib but not cited. `biblatex` will silently omit them — no error. Consider adding `\parencite{beer1996}` in the environment/task description in methods, where the ball-catching task is introduced.
+- [ ] **Stolting first name:** the bib has "Jordan Stolting" — verify this is correct.
+- [ ] **`\parencite` vs inline citation style.** Where "Williams" is the subject of a sentence, the citation should appear at the end of the clause in parentheses, not interrupt the prose. Spot-check the introduction.
+
+---
+
+### 5. COMPILE
+
+- [ ] Delete any stale aux files (`.aux`, `.bbl`, `.bcf`, `.blg`) for a clean build.
+- [ ] `pdflatex → biber → pdflatex → pdflatex`
+- [ ] Check for overfull hboxes that break layout (warnings in the log).
+- [ ] Read the compiled PDF end to end — this is the most important review step. You will catch things in the PDF that you miss in the source.
+
+---
+
+### 6. CODEBASE TIDY (do last, ~15 minutes)
+
+- [ ] `git status` — commit any outstanding changes
+- [ ] `uv run pytest` — all tests passing
+- [ ] Confirm `main` is the submission branch
+- [ ] `git tag submission && git push origin submission`
+- [ ] Verify repo is public (or accessible to Chris)
+
+---
+
+## FIGURES REFERENCE — complete list
+
+Every figure the report references, with label and expected filename:
+
+| Label in report | File(s) needed | Section |
+|---|---|---|
+| `fig:substrate` | `figs/substrate_check.pdf` | Results 3.1 — **MISSING, must generate** |
+| `fig:replication` | `figs/replication_fitness_curves.pdf` + `figs/replication_final_box.pdf` | Results 3.2 |
+| `fig:trajectories` | `figs/behavioural_trajectories.pdf` | Results 3.4 |
+| `fig:viablerange` | `figs/viable_range_compact.pdf` | Results 3.5 — **CHECK exists** |
+| `fig:frozenhp` | `figs/frozen_hp_scatter.pdf` + `figs/frozen_hp_drop.pdf` | Results 3.6 |
+| `fig:searchdynamics` | `figs/search_dynamics_population.pdf` | Results 3.7 |
+
+System diagram (`figs/system_diagram.pdf`) referenced in methods — currently commented out. Decision required (see task 2).
+
+All six result figures are inside `\begin{figure}...\end{figure}` blocks in `sections/results.tex` with `\includegraphics` lines commented out. After confirming files exist, uncomment each `\includegraphics` line.
+
+---
+
+## TIME ESTIMATE
+
+| Task | Est. time |
+|---|---|
+| Generate missing figures, confirm all exist | 20 min |
+| Methods geometry check + diagram decision | 15 min |
+| Content review pass (all sections) | 60 min |
+| Format pass | 30 min |
+| Compile clean, fix errors | 20 min |
+| Read compiled PDF end to end | 30 min |
+| Codebase tidy + tag + push | 15 min |
+| **Total** | **~3 hours** |
+
+~2 hours buffer. Use it if tasks run over. Do not spend it adding new content.
+
+---
+
+## STALE REFERENCE — fix in this file
+The reference snippets below still say "elitism of 1" in the GA spec. This is wrong — the actual runs used elitism of 5. Update this line when you update this file.
 
 ### Key numerical results
+- Substrate check: 86.1% → 47.7% outside [H_L, H_U] during HP; 53.9% after HP off
+- Final fitnesses (n=10): No HP 0.674 (SD 0.096), Dev only 0.838 (SD 0.059), Behaviour only 0.709 (SD 0.097), Both 0.675 (SD 0.077)
+- KW: H=17.71, p=0.0005. Dev only sig. > all others (Bonferroni p_bonf=0.0035 vs No HP and Both, p_bonf=0.0217 vs Behaviour only).
+- Frozen-HP drops: No HP within ±1 SD (noise); Dev only 5.6–28.8 SD, 5/10 complete collapses; Behaviour only 0.2–17.4 SD, 3/10 complete or near-complete collapses; Both 3/10 complete collapses, 4/10 moderate drops.
+- Viable-range (gen 199, HP on): all HP conditions frac_V 0.43–0.45 vs No HP 0.19. HP off: Dev only and Behaviour only collapse to ~0.08; Both retains 0.16.
 
-- **Substrate check:** 86.1% → 47.7% outside [H_L, H_U] during HP; 53.9% after HP off
-- **Final fitnesses (n=10):** No HP 0.674 (SD 0.096), Dev only 0.838 (SD 0.059), Behaviour only 0.709 (SD 0.097), Both 0.675 (SD 0.077)
-- **KW:** H=17.71, p=0.0005. Dev only sig. > all others (Bonferroni p_bonf=0.0035 vs No HP and Both, p_bonf=0.0217 vs Behaviour only).
-- **Frozen-HP drops:** No HP ±0.85 SD (noise); Dev only 5.6–21.2 SD (2 complete collapses); Behaviour only 1.0–5.3 SD (all positive); Both bimodal, 2 complete collapses + 3 moderate drops.
-- **Viable-range (gen 199, HP on):** all HP conditions frac_V 0.34–0.44 vs No HP 0.15. HP off: collapse to 0.04–0.08.
-
-### CTRNN state equation
-
-$$\tau_y \dot{y}_i = -y_i + \sum_{j=1}^{N} w_{ji} z_j + I_i$$
-
-### Activation function
-
-$$z_i = \sigma(y_i + b_i) = \frac{1}{1 + e^{-(y_i + b_i)}}$$
-
-### HP rule
-
-$\rho(z) = (H_L - z)/H_L$ if $z < H_L$; $0$ if $H_L \le z \le H_U$; $(H_U - z)/(1 - H_U)$ if $z > H_U$.
-
-$\tau_w \dot w = \rho |w|$, $\tau_b \dot b = \rho$.
-
-**Williams Chapter 7 values**: $H_L = 0.2$, $H_U = 0.8$, $\tau_w = 40$, $\tau_b = 20$. Integration step $\Delta t = 0.2$.
-
-### Parameter ranges
-
-$w \in [-10, 10]$, $b \in [-10, 10]$, $\tau_y \in [1, 4]$.
-
-### Ray sensor
-
-$S = S_{\max}(D_{\max} - D)/D_{\max}$, with $S_{\max} = 5$, $D_{\max} = 100$. Three sensors in upward-facing fan spanning $\pi/6$ rad.
-
-### Agent kinematics
-
-$\tau_x \dot x = z_R - z_L$, $\tau_x = 0.2$. Agent radius 5.
-
-### GA spec
-
-Tournament selection $K = 3$, elitism of 1, no crossover, Gaussian mutation per allele $\mathcal{N}(0, \sigma_m^2)$, $\sigma_m = 0.1$, $p_m = 0.03$, reflection at $[-1, 1]$.
+### GA spec (corrected)
+Tournament selection K=3, elitism of 5 (matching Williams), no crossover, Gaussian mutation per allele N(0, sigma_m^2), sigma_m=0.1, p_m=0.03, reflection at [-1,1].
