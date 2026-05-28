@@ -29,7 +29,9 @@
 \usepackage[expansion=false]{microtype}
 \usepackage{parskip}            % no indent, space between paragraphs
 \usepackage{caption}
+\usepackage[section]{placeins}   % \FloatBarrier at each \section automatically
 \usepackage[hidelinks]{hyperref}
+\usepackage{float}
 
 % Sans-serif section headings (body stays roman).
 \usepackage{sectsty}
@@ -43,6 +45,15 @@
 
 % Optional: uncomment if you typeset the GA pseudocode block in methods.
 % \usepackage[ruled,vlined]{algorithm2e}
+
+% Float placement: allow figures to occupy more of a page and appear sooner.
+\renewcommand{\topfraction}{0.85}
+\renewcommand{\bottomfraction}{0.85}
+\renewcommand{\textfraction}{0.10}
+\renewcommand{\floatpagefraction}{0.80}
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{4}
 
 % Caption styling: bold label, small font.
 \captionsetup{labelfont=bf, font=small, skip=6pt}
