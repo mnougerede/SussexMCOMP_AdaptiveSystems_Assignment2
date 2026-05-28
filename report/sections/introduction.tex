@@ -1,0 +1,88 @@
+% =====================================================================
+% sections/introduction.tex  --  input by report.tex.
+%
+% Word budget: ~700 words (counted toward the 3000-word limit).
+%
+% Written last-but-one, with the finished discussion in hand, so every setup
+% here has a specific payoff there. Five beats, each setting up the next:
+%   1. Working definition of adaptivity (Ashby / Di Paolo) -- the discussion
+%      refers back to this by name, so it MUST be stated explicitly here.
+%   2. HP background: biological homeostasis (Turrigiano) + the computational
+%      substrate-level result (Williams & Noble) -> HP as cybernetic feedback.
+%   3. The substrate-vs-evolvability tension: HP helps the substrate, yet
+%      Williams found online HP did not improve evolved fitness.
+%   4. Baldwin / genetic-assimilation frame: lifetime adaptation can guide
+%      evolution and be assimilated; the conditions vary the lifetime adaptation;
+%      the frozen-HP test probes assimilation directly.
+%   5. Contribution statement: replication of Williams Ch.7 across four HP
+%      conditions + four analyses, the central one being the frozen-HP test.
+% =====================================================================
+
+\section{Introduction}
+\label{sec:intro}
+
+An adaptive system, in the cybernetic tradition this project works within, is
+one that maintains its essential variables within viable bounds despite
+perturbation, by adjusting its own organisation across more than one timescale
+\parencite{ashby1960}. Ashby's homeostat reorganises its internal connections
+to return to equilibrium when pushed outside its stable region; Di Paolo's
+evolved agents recover coordinated behaviour after their sensors are inverted,
+adapting on a timescale slower than the behaviour itself
+\parencite{dipaolo2000}. What both share is regulation: a slow process acting on
+the parameters of a fast one to keep the fast one viable. This is the sense of
+adaptivity used throughout, and the question the project asks is what happens
+when such a regulatory process is placed in competition, and in collaboration,
+with evolution.
+
+The regulatory process in question is homeostatic plasticity (HP). In
+biological neurons, homeostatic mechanisms hold mean firing rates near a
+set-point by scaling synaptic strengths and adjusting excitability, stabilising
+activity that Hebbian learning would otherwise drive to saturation or silence
+\parencite{turrigiano1999}. The same idea transfers to artificial continuous-time
+recurrent neural networks (CTRNNs): a plasticity rule that drives each neuron's
+firing rate toward a viable range improves the network's behaviour as a
+substrate, keeping neurons in the sensitive part of their activation function
+rather than saturated at its rails \parencite{williamsnoble2007}. HP is, in
+short, cybernetic negative feedback applied to a neural controller --- a slow
+loop regulating a fast one, in exactly the form the definition above describes.
+
+If HP improves the neural substrate, it is natural to expect it to improve the
+\emph{evolvability} of that substrate: networks that stay in their sensitive
+range should be easier for evolution to shape into useful controllers. Williams
+tested this in his ball-catching experiments and found the relationship to be
+more subtle than expected \parencite{williams2006}. HP applied as a
+\emph{developmental} phase before each fitness evaluation improved evolved
+performance, but HP left running \emph{during} behaviour did not, and could
+make matters worse. The substrate-level benefit did not translate
+straightforwardly into an evolutionary one. Why a process that demonstrably
+helps the substrate should fail to help, or even hinder, when active during
+evaluation is the empirical puzzle this project sets out to replicate and
+probe.
+
+The puzzle has a natural theoretical home in the Baldwin effect: the proposal
+that adaptation acquired within an individual's lifetime can guide evolution
+without being inherited, and that traits first acquired by lifetime adaptation
+may, over generations, become encoded innately in the genotype --- genetically
+assimilated \parencite{baldwin1896, hintonnowlan1987, mayley1996}. HP is a form
+of lifetime adaptation, and the experimental conditions vary it directly:
+development-only HP is precisely the Hinton-and-Nowlan setup, lifetime
+adaptation before evaluation; HP during behaviour is the harder case, where the
+adaptation and the fitness measurement are interleaved. The Baldwin frame turns
+Williams's puzzle into a sharp question: has the behaviour evolved under HP been
+genetically assimilated --- absorbed into the genotype so that it persists when
+HP is removed --- or does it remain dependent on the plasticity that produced
+it? Stolting et al.\ suggest a specific mechanism by which assimilation might
+fail, namely that HP-during-behaviour can evolve dynamics that exist only in the
+joint space of network state and plastic parameters and so cannot survive the
+plasticity's removal \parencite{stolting2023}.
+
+This project replicates Williams's Chapter~7 ball-catching evolvability
+experiment across four HP conditions --- no HP, development-only, behaviour-only,
+and both --- and extends it with four analyses he did not perform: a behavioural
+trajectory inspection of evolved individuals, a per-neuron viable-range
+diagnostic tracked across evolution, a population-level analysis of the search
+itself, and, centrally, a frozen-HP test that removes plasticity from evolved
+controllers to measure how much of their behaviour survives. The frozen-HP test
+is the project's direct empirical answer to the assimilation question, and the
+result --- that assimilation has not occurred in any HP condition --- organises
+the discussion that follows.

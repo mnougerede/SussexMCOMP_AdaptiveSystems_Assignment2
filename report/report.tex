@@ -60,33 +60,25 @@ ball-catching agents: a frozen-HP test for genetic assimilation}
 % ABSTRACT  (~150 words)  -- write LAST
 % =====================================================================
 \begin{abstract}
-% One short paragraph: what you did, why it matters, main result + conclusion.
-% Lead with the assimilation verdict -- that is the finding that makes a
-% selective reader want to read on.
+Homeostatic plasticity (HP) improves continuous-time recurrent neural networks
+as a behavioural substrate, yet its effect on evolvability is mixed: a
+developmental phase of HP before evaluation aids evolution while online HP does
+not. We replicate Williams's (2006) ball-catching evolvability experiment across
+four HP conditions and extend it with a frozen-HP test that asks, in
+Baldwin-effect terms, whether behaviour evolved under HP has been genetically
+assimilated. It has not. Removing HP from evolved controllers by adiabatic
+elimination drops fitness far beyond the measurement-noise baseline and
+collapses behaviour entirely in a substantial fraction of individuals across all
+HP conditions. The best-performing condition, developmental HP, is also the most
+HP-dependent --- a paradox explained by a selection regime that never exposed
+the genotype's un-developed competence to evolution. HP here is constitutive of
+behaviour rather than assimilated into the genotype.
 \end{abstract}
 
 % =====================================================================
-% 1. INTRODUCTION  (~700 words)  -- write SECOND-TO-LAST
+% 1. INTRODUCTION  (~700 words)
 % =====================================================================
-\section{Introduction}
-\label{sec:intro}
-
-% Planned thread (plant here, pay off in Discussion):
-%  (a) Working definition of adaptivity -- Di Paolo grounded in Ashby.
-%      State it explicitly; you must refer back to it in the discussion.
-%  (b) HP background: biological (Turrigiano) + computational
-%      substrate-level gains (Williams & Noble 2007).
-%  (c) The substrate-vs-evolvability tension: HP helps the substrate, yet
-%      Williams (2006) found online HP did NOT improve evolved fitness.
-%  (d) Baldwin-effect frame: lifetime adaptation can guide evolution and
-%      become genetically assimilated (Baldwin 1896; Hinton & Nowlan 1987;
-%      Mayley 1996; Turney 1996). Dev-only = the Hinton & Nowlan setup;
-%      behaviour-HP interleaves lifetime adaptation with fitness measurement.
-%  (e) Stolting et al. (2023) as the candidate mechanism by which
-%      assimilation can fail.
-%  (f) Contribution statement: replication of Williams Ch.7 across four HP
-%      conditions + four new analyses (3 of the controller, 1 of the search),
-%      the central one being the frozen-HP / assimilation test.
+\input{sections/introduction}
 
 
 % =====================================================================
