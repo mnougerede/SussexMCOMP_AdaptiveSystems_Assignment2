@@ -1,0 +1,117 @@
+% =====================================================================
+% sections/discussion.tex  --  input by report.tex.
+%
+% Word budget: ~800 words (counted toward the 3000-word limit).
+%
+% Spec: do NOT list the discussion questions and answer them in turn -- weave.
+% Required coverage, woven: (a) further work; (b) how adaptive the system is,
+% per the intro's definition; (c) connection to the wider adaptive-systems
+% area; plus at least one of hypothesis-support / new-hypothesis.
+%
+% Builds to the two main points:
+%   MP1: genetic assimilation has NOT occurred (frozen-HP test).
+%   MP2: the Dev only paradox -- best-performing yet most HP-dependent.
+%
+% "Consistent with" discipline preserved from methods_log 11.5: the 8b/8c
+% conjunction is consistent with Williams's substrate claim, not a proof; the
+% Both mechanism is the most parsimonious reading, not a demonstrated cause.
+% =====================================================================
+
+\section{Discussion}
+\label{sec:discussion}
+
+The central question of this project, framed through the Baldwin effect, was
+whether behaviour evolved with homeostatic plasticity becomes genetically
+assimilated --- encoded innately in the genotype --- or remains dependent on the
+plasticity that produced it \parencite{baldwin1896, hintonnowlan1987}. The
+frozen-HP test answers this directly, and the answer is that assimilation has
+not occurred in any HP condition. Across all three, removing HP by adiabatic
+elimination drops fitness far beyond the measurement-noise baseline, and in a
+substantial fraction of individuals --- between three and five in ten depending
+on condition --- it collapses the behaviour entirely. The within-lifetime
+adaptation is not a refinement layered on top of a competent genotype; in these
+individuals it is constitutive of the behaviour. This is the clearest result of
+the study, and it is a negative result with respect to the Baldwin prediction:
+selection under HP did not, over $200$ generations, produce genotypes that no
+longer need it.
+
+The viable-range diagnostics make the same point at the level of neural
+dynamics. Every HP condition holds neurons in the viable range while HP is
+active and loses that property the moment HP is frozen, falling to or below the
+non-plastic baseline. The same intervention collapses both viable-range
+operation and fitness, which is \emph{consistent with} Williams's claim that
+viable-range operation is functionally important
+\parencite{williams2006} without proving it, since fitness could be sensitive
+to the frozen parameters for reasons the viable-range fraction does not capture.
+Stolting et al.\ offer a candidate mechanism \parencite{stolting2023}:
+HP-during-behaviour may evolve dynamics in the joint network-and-parameter state
+space that cannot be reproduced once the parameters are held fixed. The large
+drops are consistent with this but do not isolate it from simpler explanations.
+
+The second main finding is an apparent paradox. \emph{Dev only} is both the
+best-performing condition and the most HP-dependent, with the highest rate of
+complete collapse on freezing. These are not in tension once the selection
+regime is considered. Because HP always ran before evaluation in \emph{Dev
+only}, every genotype the GA ever scored had already been transformed by
+development; the GA could not distinguish a genotype that works because its raw
+parameters are good from one that works only after HP has reshaped it. Both look
+identical to the fitness function, and selection therefore had no purchase on
+innate competence at all. The high fitness and the high HP-dependence are two
+faces of the same fact. This is the Baldwin setup operating without its second
+phase: lifetime adaptation guided the search, but because acquired changes are
+not inherited and there was never selective pressure to internalise them, no
+assimilation followed. It also resolves the puzzle of why \emph{Both}, which
+runs the identical developmental phase, fails to inherit \emph{Dev only}'s
+advantage: leaving HP active during behaviour appears to let ongoing plasticity
+work against the developmentally established configuration rather than build on
+it. That reading is the most parsimonious account of the data rather than a
+directly demonstrated cause.
+
+One confound should be stated plainly. The conditions vary both the presence of
+a developmental phase and the presence of behaviour-phase HP, but do not include
+a developmental phase with HP disabled, so the developmental benefit cannot be
+fully separated from the effect of simply letting the network settle for $6000$
+unloaded timesteps before evaluation. The evidence points against settling as
+the primary driver --- the substrate check shows a genuine parameter shift, and
+the collapsed individuals have raw genotypes whose dynamics no amount of
+settling would rescue --- but the question is not closed for the moderate
+effects.
+
+The search-dynamics analysis reframes all of this at the level of the larger
+adaptive system. The four conditions converge on the same early timescale and
+differ only in where they settle, which locates HP's effect precisely: it does
+not change the shape of the fitness landscape, which is fixed by the evaluation
+procedure, but changes the effective genotype-to-phenotype mapping the GA
+selects across. \emph{Dev only} reaches a higher basin not by searching longer
+but by handing the GA a better-developed phenotype to score. Read this way, the
+one respect in which the replication departs from Williams --- that online HP
+was not significantly worse than no HP, where he reports it as worse --- is
+plausibly an effect of the better-conditioned tournament selection used here,
+which is less prone than his roulette-plus-elitism scheme to amplify small
+fitness differences into convergence on a poor basin. The point is offered as
+the most likely reading rather than a tested claim, since the two GAs were not
+run side by side.
+
+Returning to the working definition of adaptivity from the introduction --- a
+system that maintains viability under perturbation by acting across multiple
+timescales \parencite{ashby1960, dipaolo2000} --- the HP conditions are more
+adaptive than the non-plastic one in a precise and somewhat uncomfortable sense.
+HP is genuine cybernetic negative feedback, regulating firing rates toward a
+viable set-point much as Ashby's ultrastable system reorganises to stay within
+bounds. But the frozen-HP results show that for many evolved individuals this
+regulation is load-bearing rather than corrective: the agent does not merely
+perform better with HP, it requires HP to function. The adaptivity has not been
+absorbed into the structure; it remains an active process the behaviour leans
+on.
+
+Several directions follow. The cleanest is the missing fifth condition --- a
+developmental phase with HP disabled --- which would resolve the settling
+confound. The discrimination task Williams found hardest would test a clear
+prediction: if online HP is constitutive on the easy task, the dependence should
+deepen on the harder one. Running Williams's original roulette-plus-elitism GA
+alongside the present tournament GA would separate selection effects from HP
+effects, the one methodological difference this replication retains. Finally,
+the assimilation question itself could be pursued by extending evolution well
+beyond $200$ generations, or by adding an explicit cost to plasticity, to ask
+whether assimilation occurs at all under stronger or more prolonged selective
+pressure \parencite{mayley1996}.

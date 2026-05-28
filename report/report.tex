@@ -100,76 +100,13 @@ ball-catching agents: a frozen-HP test for genetic assimilation}
 % =====================================================================
 % 3. RESULTS AND ANALYSES  (~1300 words)
 % =====================================================================
-% Spec (EA clause): focus analyses on the LARGER adaptive system -- EA,
-% problem space, fitness function, population, and the landscapes they
-% codetermine. Build everything toward the two main points:
-%   MP1: genetic assimilation has NOT occurred (frozen-HP test).
-%   MP2: the Dev-only paradox -- best-performing yet most HP-dependent.
-\section{Results and analyses}
-\label{sec:results}
-
-\subsection{Substrate-level sanity check}
-\label{sec:results:substrate}
-% 0.861 -> 0.477 (HP on) -> 0.539 (HP off). Establishes HP works and that
-% some regulation persists, foreshadowing the frozen-HP test.
-
-\subsection{Replication: four-condition evolvability}
-\label{sec:results:replication}
-% Fitness curves (mean +/-1 SD, faint runs) + final-fitness box plot.
-% KW H=17.71, p=0.0005; Dev only sig. > all others (Bonferroni). Online-HP
-% NOT worse than No HP -- divergence from Williams; flag as a discussion hook.
-% Include the search-REPLICATION read here (early progress, run consistency).
-
-\subsection{Behavioural trajectories}
-\label{sec:results:trajectories}
-% 2-4 representative panels (likely Dev only vs Behaviour only). Blue/cream/red
-% = below/in/above viable range. Motivates the two 8b metrics.
-
-\subsection{Viable-range diagnostics across evolution}
-\label{sec:results:viablerange}
-% frac_V and entry-exit rate, training vs HP-off. Summary table.
-% Headline: no HP condition holds neurons in range without HP.
-
-\subsection{Frozen-HP test: has assimilation occurred?}  % <-- MP1 lands here
-\label{sec:results:frozenhp}
-% Drops in baseline-SD units; controls near zero; collapse counts
-% (5/10 Dev, 3/10 Behaviour, 3/10 Both). Verdict: assimilation has not
-% occurred in any HP condition.
-
-\subsection{Search dynamics of the larger adaptive system}
-\label{sec:results:searchdynamics}
-% Population best/mean/spread per generation. "Differ in WHERE they converge,
-% not whether/how fast." Serves the spec's EA clause directly. Consider
-% whether this should frame the section rather than close it.
+\input{sections/results}
 
 
 % =====================================================================
 % 4. DISCUSSION  (~800 words)
 % =====================================================================
-% Do NOT list the spec's questions and answer them in turn (spec warns
-% against this). Weave. Build to MP1 + MP2. Required coverage:
-%   - further work
-%   - how adaptive is the system, per the intro's definition
-%   - connection to the wider adaptive-systems area
-%   plus at least one of the hypothesis-support / new-hypothesis options.
-\section{Discussion}
-\label{sec:discussion}
-
-% Suggested flow:
-%  1. Assimilation verdict as the headline (MP1): tie frozen-HP drop to the
-%     Baldwin frame; HP is constitutive, not merely helpful.
-%  2. The Dev-only paradox (MP2): best yet most HP-dependent -- explain via
-%     the selection regime (GA never saw un-developed phenotypes).
-%  3. Stolting mechanism as candidate explanation for assimilation failure.
-%  4. Search-dynamics framing: HP changes the genotype-phenotype map across a
-%     FIXED landscape (NOT a "moving landscape" -- Chris's correction).
-%  5. Adaptivity revisited: which timescales are active in each condition;
-%     HP as cybernetic negative feedback / Ashby ultrastability.
-%  6. Divergence from Williams (online HP not worse) -- GA-conditioning artefact?
-%  7. Limitations: single task, fixed tau_w/tau_b, n=10, no discrimination,
-%     developmental-settling confound (one honest sentence).
-%  8. Future work: discrimination; timescale-separation sweep; alternative
-%     rho shapes; exact-Williams-GA comparison; larger networks.
+\input{sections/discussion}
 
 
 % =====================================================================
