@@ -289,20 +289,8 @@ def build_figure(cond_records: dict) -> plt.Figure:
     cb  = fig.colorbar(im_ref, cax=cax, orientation="vertical")
     cb.set_label("Firing rate", fontsize=8, labelpad=6)
     cb.set_ticks([0, H_L, H_U, 1])
-    cb.set_ticklabels(["0", "H_L", "H_U", "1"], fontsize=7)
-    # Annotate the H_L / H_U tick positions with their numeric values
+    cb.set_ticklabels(["0", "H_L\n(0.2)", "H_U\n(0.8)", "1"], fontsize=7)
     cb.ax.yaxis.set_tick_params(labelsize=7)
-    for tick_val, extra in [(H_L, " (0.2)"), (H_U, " (0.8)")]:
-        cb.ax.annotate(
-            extra,
-            xy=(1, tick_val),
-            xycoords=("axes fraction", "data"),
-            xytext=(4, 0),
-            textcoords="offset points",
-            fontsize=6,
-            va="center",
-            color="#444444",
-        )
 
     return fig
 
@@ -365,6 +353,7 @@ def main() -> None:
 
     fig = build_figure(cond_records)
     out_fig = FIGS_DIR / "behavioural_trajectories.pdf"
+    fig.tight_layout()
     fig.savefig(out_fig, bbox_inches="tight")
     plt.close(fig)
     print(f"Saved: {out_fig}")
