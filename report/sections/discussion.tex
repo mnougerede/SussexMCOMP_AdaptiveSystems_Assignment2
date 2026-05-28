@@ -76,19 +76,21 @@ driver --- the HP rule produces a measurable parameter shift in isolated network
 genotypes whose dynamics no amount of settling would rescue --- but the question
 is not closed for the moderate effects.
 
-The search-dynamics analysis reframes all of this at the level of the larger
-adaptive system. The four conditions converge on the same early timescale and
-differ only in where they settle, which locates HP's effect precisely: it does
-not change the shape of the fitness landscape, which is fixed by the evaluation
-procedure, but changes the effective genotype-to-phenotype mapping the GA
-selects across. \emph{Dev only} reaches a higher basin not by searching longer
-but by handing the GA a better-developed phenotype to score. Read this way, the main methodological difference between this replication and
-Williams's --- tournament selection replacing roulette-wheel selection --- is a
-plausible explanation for why online HP was not significantly worse than no HP
-here, where he reports it as worse. Tournament selection is less prone than
-roulette-plus-elitism to amplifying small fitness differences into convergence on
-a poor basin. This is offered as a possible explanation rather than a tested
-claim, since the two GAs were not run side by side.
+The search-dynamics analysis adds a further dimension. The online-HP conditions
+(\emph{Behaviour only} and \emph{Both}) converge rapidly to a narrow fitness
+band within the first few generations, while \emph{No HP} and \emph{Dev only}
+maintain population-level diversity throughout all $200$ generations. This
+suggests online HP has a homogenising effect on the population. \emph{Dev only}
+begins with a higher mean best fitness at generation $0$ than any other
+condition, before selection has acted at all, because the developmental phase
+has already shifted the expressed phenotype. HP does not change the fitness
+landscape, which is fixed by the evaluation procedure; it changes what
+phenotypes genotypes express. The direction of that change, and whether it aids
+or homogenises the search, depends on when HP acts. The divergence from
+Williams --- that online HP is not significantly worse than no HP here, where
+he reports it as worse --- may partly reflect the homogenising effect reducing
+exploration rather than improving the basin reached; this is offered as a
+possible explanation rather than a tested claim.
 
 Returning to the working definition of adaptivity from the introduction: a
 system that maintains viability under perturbation by acting across multiple
