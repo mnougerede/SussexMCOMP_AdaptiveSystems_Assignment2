@@ -21,19 +21,19 @@
 \label{sec:methods:overview}
 
 The experimental system comprises four coupled components operating on
-distinct timescales. A \emph{falling-shape environment} presents circular
-objects that descend through the agent's field of view. An \emph{agent body},
+distinct timescales. A falling-shape environment presents circular
+objects that descend through the agent's field of view. An agent body,
 constrained to horizontal motion, carries an upward-facing fan of ray sensors
 and attempts to position itself beneath each falling shape. A
-\emph{continuous-time recurrent neural network} (CTRNN) maps sensor readings to
-motor commands. A \emph{homeostatic plasticity} (HP) module adjusts the
+continuous-time recurrent neural network (CTRNN) maps sensor readings to
+motor commands. A homeostatic plasticity (HP) module adjusts the
 network's weights and biases online, driving individual neurons towards a
 target firing-rate range. Overarching these, a genetic algorithm (GA) evolves
 the CTRNN's weights, biases and time constants across generations. The three
 adaptive processes act on separate timescales: the network state changes every
 timestep, HP modifies network parameters over the course of a trial, and the GA
 modifies genotypes over generations. HP itself is not evolved; its parameters
-are fixed across all runs. The experimental conditions vary \emph{when} HP acts,
+are fixed across all runs. The experimental conditions vary when HP acts,
 not whether it acts (Section~\ref{sec:methods:conditions}).
 
 % [DIAGRAM] system_diagram.pdf -- the three coupled loops (sensorimotor,
@@ -92,13 +92,9 @@ Of the five nodes, three are designated sensor nodes (receiving the three ray
 sensors' signals as their external input) and two are motor nodes (whose firing
 rates drive the body). There are no interneurons. This minimal architecture is
 Williams's Chapter~7 specification; larger networks are explored in his later
-experiments and are noted as future work
-(Section~\ref{sec:discussion}).\footnote{The CTRNN integration was performed
-using the \texttt{madvn/CTRNN} package \parencite{candadai2020}, whose
-algorithm is exactly Equations~\ref{eq:ctrnn-state}--\ref{eq:ctrnn-euler}; it is
-described here as our own per the assignment requirements. Analysis-only tools
-(\texttt{numpy}, \texttt{scipy}, \texttt{matplotlib}) are identified in
-Section~\ref{sec:methods:analysis}.}
+experiments and are noted as future work (Section~\ref{sec:discussion}).
+CTRNN integration used the \texttt{madvn/CTRNN} package \parencite{candadai2020},
+whose algorithm is Equations~\ref{eq:ctrnn-state}--\ref{eq:ctrnn-euler}.
 
 \paragraph{Genotype encoding.}
 A genotype is a vector of $N^2 + 2N = 35$ real-valued alleles, each in
@@ -158,10 +154,11 @@ and each bias by
   \label{eq:hp-bias}
 \end{equation}
 %
-The absolute value $\lvert w_{ji} \rvert$ in Equation~\ref{eq:hp-weight} is
-essential: it ensures that both excitatory and inhibitory weights grow in
-\emph{magnitude} when $\rho_i > 0$ and shrink when $\rho_i < 0$, so that it is
-the strength of a connection that is regulated, not its sign. Equations
+The absolute value $\lvert w_{ji} \rvert$ in Equation~\ref{eq:hp-weight} ensures
+that the update scales with the current magnitude of the weight regardless of its
+sign: when $\rho_i > 0$, both excitatory and inhibitory weights grow in magnitude,
+and when $\rho_i < 0$ both shrink, so it is the strength of a connection that is
+regulated rather than its direction. Equations
 \ref{eq:hp-weight} and \ref{eq:hp-bias} are integrated with the same forward
 Euler step $\Delta t = 0.2$ as the network state. Within a timestep the order of
 operations is: inject sensor input, advance the network state by
@@ -236,7 +233,7 @@ trials.
 
 In the conditions that include a developmental phase
 (Section~\ref{sec:methods:conditions}), each trial is preceded by a
-\emph{developmental period} of $6000$ timesteps during which the network
+developmental period of $6000$ timesteps during which the network
 receives zero external input ($I = 0$) and HP runs freely. Williams does not
 state the input regime during this period; we follow the Chapter~6 substrate-level
 precedent, in which HP is run on isolated networks, and use zero input. The
@@ -247,14 +244,19 @@ reading rather than a ``preview the task'' one.
 \subsection{Fitness function}
 \label{sec:methods:fitness}
 
-% [CHECK] Confirm the exact eq.7.3 components and the S_max numerator/denominator
-% against the thesis before final submission. Drafted from methods_log + todo.
+% [CHECK] Verify the per-shape score formula (eq:per-shape-score) against
+% src/environment/fitness.py before submitting.
 Fitness rewards an agent for reducing its horizontal distance to each shape over
 the course of that shape's fall and for finishing close to it. For a single
 shape, let $D_0$ be the initial horizontal agent--shape distance and $D_f$ the
-final distance at the moment the shape passes the agent. The per-shape score
-combines the reduction in distance with the final proximity, normalised by a
-per-shape maximum
+final distance at the moment the shape passes the agent. The per-shape score is
+%
+\begin{equation}
+  c \;=\; \frac{\max(D_0 - D_f,\; 0) + \max(D_0 - D_f,\; 0)}{S_{\max}},
+  \label{eq:per-shape-score}
+\end{equation}
+%
+normalised by a per-shape maximum that accounts for shape speed,
 %
 \begin{equation}
   S_{\max} \;=\; \bigl(1 + \lvert v_{x,\text{shape}} \rvert\bigr)
@@ -264,7 +266,7 @@ per-shape maximum
 %
 where $v_{x,\text{shape}}$ and $v_{y,\text{shape}}$ are the shape's horizontal
 and vertical velocities, so that faster-falling or laterally-moving shapes
-(which are harder to catch) scale the score appropriately. The
+(which are harder to catch) scale the maximum score appropriately. The
 displacement-reduction contribution is clipped at zero so that an agent which
 increases its distance scores no worse than one that does not move. The trial
 fitness is the mean per-shape score over the $20$ shapes in the trial, and an
@@ -286,9 +288,7 @@ range.
 
 This GA matches Williams's elitism of five and per-allele mutation rate of $3\%$,
 but replaces his rank-based roulette-wheel selection with tournament selection.
-Tournament selection is the standard choice in evolutionary computation and is
-less prone to the early fitness-variance collapse that roulette-wheel selection
-can cause; the consequences for comparison with Williams are discussed in
+The consequences of this difference for comparison with Williams are discussed in
 Section~\ref{sec:discussion}.
 
 % [PSEUDOCODE] A short algorithm block for one GA generation would satisfy the
@@ -332,10 +332,7 @@ conditions define both the evolutionary runs and the frozen-HP test
 Four analyses are applied to the evolved populations; three examine the evolved
 controllers and one the search itself. All operate on data saved during the
 evolutionary runs and re-evaluations, and all plots are regenerated from saved
-data rather than live runs. Analysis tooling is \texttt{numpy},
-\texttt{scipy} (statistics), \texttt{matplotlib} (figures) and \texttt{pandas};
-these are used only for analysis and so are not described at the algorithmic
-level.
+data rather than live runs.
 
 \paragraph{Behavioural trajectories.}
 For a representative individual per condition, the agent and shape positions and
@@ -354,21 +351,26 @@ contribution of ongoing plasticity to viable-range operation can be isolated.
 \paragraph{Frozen-HP test.}
 This test asks whether the behaviour evolved under HP has been genetically
 assimilated, i.e.\ whether it persists once HP is removed. Each evolved
-individual is evaluated twice: once with HP active and once with HP frozen by
-adiabatic elimination. For \emph{Behaviour only}, HP runs for an initial
-settling window of the first ten shapes and is then frozen, with fitness
-measured over the remaining shapes; for \emph{Both}, HP is frozen at the end of
-the developmental period and fitness is measured over the trial. \emph{Dev only}
-and \emph{No HP} serve as controls, for which the frozen variant should produce
-no change because HP was already inactive during their behaviour. To establish
-the measurement noise against which a fitness drop is judged significant, each
-individual is additionally re-evaluated $20$ times with different shape-sequence
-seeds and HP active; a frozen-HP drop is reported in units of this
-within-individual standard deviation.
+individual is evaluated twice: once under its training condition and once with HP
+disabled. The three HP conditions differ in what disabling means. For
+\emph{Dev only}, the frozen evaluation runs the individual entirely without HP:
+no developmental phase is applied and the individual is evaluated straight from
+its genotype. For \emph{Both}, HP runs during the developmental period as normal
+but is then disabled (adiabatic elimination: the plasticity update is turned off
+while the adapted weights and biases are retained) for the trial. For
+\emph{Behaviour only}, HP runs for an initial window of the first ten shapes and
+is then disabled by adiabatic elimination, with fitness measured over the
+remaining shapes. \emph{No HP} serves as a measurement-noise control: because HP
+was never active, disabling it should produce no fitness change. To establish the
+noise baseline, each individual is additionally re-evaluated $20$ times with
+different shape-sequence seeds under its training condition; a frozen-HP fitness
+drop is compared against this within-individual variability.
 
 \paragraph{Search dynamics.}
 To characterise the larger adaptive system, the population's best fitness, mean
 fitness and fitness spread (the standard deviation of fitnesses across the
 population) are tracked across generations for each condition. The fitness
-spread serves as a diversity proxy; genotype-level diversity is not recovered
-because only population fitnesses, not genotypes, are retained per generation.
+spread serves as a diversity proxy. Per-generation genotype arrays are not
+retained in the run history; genotype-level diversity measures would require
+post-hoc analysis of the per-generation best-individual archives, which was not
+performed.
