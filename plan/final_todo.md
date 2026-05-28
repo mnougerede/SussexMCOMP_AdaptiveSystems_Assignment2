@@ -64,12 +64,6 @@ Specific things to check that I cannot verify from source:
 The codebase needs to read as a human-produced research project, not as
 AI working notes. In order of importance:
 
-- [ ] Ask Claude Code to run the scaffolding audit (prompt 3 from the todo):
-  "Search the codebase for comments that look like they were written for or by
-  an AI coding agent — phrases like NOTE FOR CLAUDE, Claude Code prompt, or
-  step-by-step instructions inside comments that read more like prompts than
-  documentation. List files and line numbers."
-
 - [ ] Check `notes/` directory. The `methods_log.md` and `design_decisions.md`
   are legitimate project documentation and should stay. Remove any files that
   are clearly AI working notes.

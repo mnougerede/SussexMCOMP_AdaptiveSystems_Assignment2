@@ -85,9 +85,9 @@ The loader (`scripts/analysis/load_runs.py`) discovers all runs by scanning `exp
 
 ## Key implementation notes
 
-**HP weight rule:** the plasticity update rule is $\tau_w \dot{w} = \rho |w|$ with absolute value on the weight. The absolute value bars are dropped when copying equations from PDFs and are not always reproduced faithfully by automated tools, which can produce the incorrect form $\rho w$. The implementation uses the absolute value form; see Williams (2006) §7.4.1.1 and `notes/design_decisions.md`.
+**HP weight rule:** The plasticity update rule is $\tau_w \dot{w} = \rho |w|$, with absolute value on the weight. See Williams (2006) §7.4.1.1 and `notes/design_decisions.md`.
 
-**GA:** tournament selection K=3, elitism 1, Gaussian mutation. This differs from Williams's roulette + top-5 GA; see `notes/design_decisions.md`.
+**GA:** Tournament selection (K=3) with elitism of 5 was used, matching Williams on elitism and mutation rate but replacing his roulette-wheel selection with tournament selection; see `notes/design_decisions.md`.
 
 **Frozen-HP semantics:** in the assimilation test, "frozen" means `hp.enabled = False` after a settling window, holding weights and biases at their HP-driven values without resetting to genotype. Williams calls this adiabatic elimination.
 
@@ -96,10 +96,6 @@ The loader (`scripts/analysis/load_runs.py`) discovers all runs by scanning `exp
 ## Key references
 
 - Williams, H. T. P. (2006). *Homeostatic adaptive networks*. PhD thesis, University of Leeds.
-- Williams, H. (2005). Homeostatic plasticity improves continuous-time recurrent neural networks as a behavioural substrate. *Proceedings of the International Symposium on Adaptive Motion in Animals and Machines, AMAM2005*.
+- Williams, H. T. P. (2005). Homeostatic plasticity improves continuous-time recurrent neural networks as a behavioural substrate. *Proceedings of the International Symposium on Adaptive Motion in Animals and Machines, AMAM2005*.
 - Beer, R. D. (1996). Toward the evolution of dynamical neural networks for minimally cognitive behavior. *From Animals to Animats 4*, MIT Press.
 - Stolting, L., Beer, R. D. and Izquierdo, E. J. (2023). Characterizing the role of homeostatic plasticity in central pattern generators. *Proceedings of ALIFE 2023*, MIT Press.
-
-## Author
-
-Max de la Nougerede, University of Sussex, MComp Adaptive Systems 2025/26.

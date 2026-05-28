@@ -47,10 +47,10 @@ The caption says "drop magnitude per individual in units of the
 within-individual measurement-noise SD" but the figure y-axis says "Fitness
 drop (HP-active minus HP-frozen)" — raw fitness units. Fix the caption.
 
-#### 1c. Fitness function equation — needs Claude Code check
+#### 1c. Fitness function equation — needs verification
 The per-shape score equation added to methods §2.6 has a `[CHECK]` comment
 because the exact formula wasn't verified against the code. Must confirm before
-submitting. See the Claude Code prompt list below.
+submitting.
 
 #### 1d. Abstract — update to remove SD units language
 The abstract says "drops fitness far beyond the measurement-noise baseline" —
@@ -122,39 +122,6 @@ Standard academic codebase items:
   shouldn't — they're LaTeX comments — but confirm)
 - [ ] Check for overfull hbox warnings
 - [ ] **Read the compiled PDF end to end.** This is the most important step.
-
----
-
-## CLAUDE CODE PROMPT LIST
-
-Items that need code inspection before the report can be finalised:
-
-**Priority 1 — blocking:**
-
-1. Fitness function formula: What is the exact per-shape score formula in
-   `src/environment/fitness.py`? Specifically: how are D0 and Df combined into
-   the per-shape score, and is there a normalisation by Smax? Show the relevant
-   code lines and express the formula mathematically.
-
-2. Search dynamics — spread behaviour confirmation: The CSV shows Behaviour
-   only and Both converge (spread < 0.02) by generation 3–4, while No HP and
-   Dev only never converge (final spread ~0.11–0.12). Can you confirm this is
-   real and not a data artefact? Specifically: are the spread values in
-   search_dynamics_summary.csv the mean across 10 runs, or the spread from a
-   single run? (The CSV column is `mean_spread` — confirm this is the mean of
-   the per-run spreads, not the spread of the per-run final fitnesses.)
-
-**Priority 2 — codebase tidy:**
-
-3. AI scaffolding audit: Search the codebase for comments or strings that look
-   like they were written for/by an AI coding agent — things like "NOTE FOR
-   CLAUDE", "Claude Code prompt", explicit step-by-step instructions inside
-   comments that read more like prompts than documentation. List any files and
-   line numbers where these appear.
-
-4. Check `notes/` directory contents: List all files in the `notes/` directory.
-   Which ones look like genuine project documentation vs AI working notes that
-   shouldn't be in a submission?
 
 ---
 
