@@ -90,8 +90,8 @@ Section~\ref{sec:discussion}.
 
 \begin{figure}[t]
   \centering
-  % \includegraphics[width=\linewidth]{figs/replication_fitness_curves.pdf}\par\medskip
-  % \includegraphics[width=0.7\linewidth]{figs/replication_final_box.pdf}
+   \includegraphics[width=\linewidth]{../figs/replication_fitness_curves.pdf}\par\medskip
+   \includegraphics[width=0.7\linewidth]{../figs/replication_final_box.pdf}
   \caption{Four-condition replication ($n = 10$ runs per condition,
   $200$ generations). Top: best-of-generation fitness, mean $\pm 1$~SD band
   across runs with individual runs faintly overlaid. Bottom: final-generation
@@ -136,7 +136,7 @@ in-range time than \emph{No HP}.
 
 \begin{figure}[t]
   \centering
-  % \includegraphics[width=\linewidth]{figs/behavioural_trajectories.pdf}
+   \includegraphics[width=\linewidth]{../figs/behavioural_trajectories.pdf}
   \caption{Behavioural trajectories for the best individual per condition,
   three shared-seed trials each. Top of each panel: agent and shape
   $x$-positions over time. Bottom: five-neuron firing-rate heatmap; blue
@@ -158,16 +158,18 @@ achieve $\mathrm{frac}_V$ between $0.43$ and $0.45$, well above the \emph{No HP}
 baseline of $0.19$. With HP frozen, \emph{Dev only} and \emph{Behaviour only}
 collapse to $\mathrm{frac}_V \approx 0.08$, at or below the \emph{No HP}
 baseline; \emph{Both} retains slightly more activity in range ($0.16$). The
-entry--exit rate distinguishes the developmental conditions from \emph{No HP}:
-\emph{Dev only} in training mode shows $9.55$ transitions per $1000$ steps
-versus \emph{No HP}'s $1.49$ (the banding seen in
-Figure~\ref{fig:trajectories}); when HP is frozen, \emph{Dev only}'s rate falls
-to $0.04$. The pattern is the same in all three HP conditions: viable-range
-operation is held in place by HP and collapses when HP is removed.
+entry--exit rate at the final generation is elevated in all three HP conditions
+relative to \emph{No HP} ($1.49$ transitions per $1000$ steps): \emph{Dev only}
+$9.55$, \emph{Behaviour only} $5.89$, \emph{Both} $4.62$. When HP is frozen,
+all three HP conditions show rates near zero ($0.04$, $0.05$, $0.02$
+respectively), collapsing to or below the \emph{No HP} level. The pattern is
+consistent across conditions: viable-range operation and the dynamic firing
+patterns associated with it are held in place by HP and collapse when HP is
+removed.
 
 \begin{figure}[t]
   \centering
-  % \includegraphics[width=\linewidth]{figs/viable_range_compact.pdf}
+   \includegraphics[width=\linewidth]{../figs/viable_range_compact.pdf}
   \caption{Per-neuron viable-range diagnostics, mean across runs and neurons
   at the final generation. Left: $\mathrm{frac}_V$ with HP active and with
   HP frozen. Right: final-generation entry--exit rate per $1000$ timesteps,
@@ -200,8 +202,8 @@ Genetic assimilation, which would predict small or zero drops, is not observed.
 
 \begin{figure}[t]
   \centering
-  % \includegraphics[width=\linewidth]{figs/frozen_hp_scatter.pdf}\par\medskip
-  % \includegraphics[width=0.7\linewidth]{figs/frozen_hp_drop.pdf}
+   \includegraphics[width=\linewidth]{../figs/frozen_hp_scatter.pdf}\par\medskip
+   \includegraphics[width=0.7\linewidth]{../figs/frozen_hp_drop.pdf}
   \caption{Frozen-HP test. Top: HP-active fitness against frozen-HP fitness for
   each of the $40$ final-generation best individuals, by condition; the dashed
   line $y = x$ marks zero drop. Bottom: raw fitness drop (HP-active minus

@@ -244,19 +244,39 @@ reading rather than a ``preview the task'' one.
 \subsection{Fitness function}
 \label{sec:methods:fitness}
 
-% [CHECK] Verify the per-shape score formula (eq:per-shape-score) against
-% src/environment/fitness.py before submitting.
 Fitness rewards an agent for reducing its horizontal distance to each shape over
 the course of that shape's fall and for finishing close to it. For a single
 shape, let $D_0$ be the initial horizontal agent--shape distance and $D_f$ the
-final distance at the moment the shape passes the agent. The per-shape score is
+final distance at the moment the shape passes the agent. The per-shape score
+combines two components, averaged equally:
 %
 \begin{equation}
-  c \;=\; \frac{\max(D_0 - D_f,\; 0) + \max(D_0 - D_f,\; 0)}{S_{\max}},
+  c \;=\; \tfrac{1}{2}\bigl(\phi_1 + \phi_2\bigr),
   \label{eq:per-shape-score}
 \end{equation}
 %
-normalised by a per-shape maximum that accounts for shape speed,
+where $\phi_1$ is a relative improvement term,
+%
+\begin{equation}
+  \phi_1 \;=\;
+  \begin{cases}
+    0 & \text{if } D_0 = 0, \\
+    \operatorname{clip}\!\bigl(1 - D_f/D_0,\; 0, 1\bigr) & \text{otherwise,}
+  \end{cases}
+  \label{eq:phi1}
+\end{equation}
+%
+measuring how much the agent reduced its fractional distance to the shape; and
+$\phi_2$ is an absolute proximity term,
+%
+\begin{equation}
+  \phi_2 \;=\; \operatorname{clip}\!\bigl(1 - D_f/S_{\max},\; 0, 1\bigr),
+  \label{eq:phi2}
+\end{equation}
+%
+measuring how close the agent finished relative to the worst-case reachable
+separation. The normalising constant $S_{\max}$ is the maximum separation an
+agent could reach given the shape's velocities:
 %
 \begin{equation}
   S_{\max} \;=\; \bigl(1 + \lvert v_{x,\text{shape}} \rvert\bigr)
@@ -265,13 +285,10 @@ normalised by a per-shape maximum that accounts for shape speed,
 \end{equation}
 %
 where $v_{x,\text{shape}}$ and $v_{y,\text{shape}}$ are the shape's horizontal
-and vertical velocities, so that faster-falling or laterally-moving shapes
-(which are harder to catch) scale the maximum score appropriately. The
-displacement-reduction contribution is clipped at zero so that an agent which
-increases its distance scores no worse than one that does not move. The trial
-fitness is the mean per-shape score over the $20$ shapes in the trial, and an
-individual's fitness is the mean over $10$ independently-seeded trials to
-average out the randomised shape sequences.
+and vertical velocities. Both components are in $[0, 1]$, so the per-shape
+score is in $[0, 1]$. The trial fitness is the mean per-shape score over the
+$20$ shapes in the trial, and an individual's fitness is the mean over $10$
+independently-seeded trials.
 
 \subsection{Genetic algorithm}
 \label{sec:methods:ga}
