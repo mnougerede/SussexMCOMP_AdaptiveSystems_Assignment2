@@ -1,0 +1,136 @@
+digraph system_diagram {
+    graph [
+        rankdir=TB
+        splines=ortho
+        nodesep=0.65
+        ranksep=0.75
+        compound=true
+        newrank=true
+        fontname="Helvetica"
+        bgcolor="white"
+        margin="0.4"
+        size="10,8"
+    ]
+    node [fontname="Helvetica" fontsize=10 margin="0.15,0.10" shape=box style="rounded,filled" width=1.8]
+    edge [fontname="Helvetica" fontsize=9 arrowsize=0.7]
+
+    // ═══════════════════════════════════════════════════════════
+    // OUTERMOST: Evolutionary adaptation
+    // ═══════════════════════════════════════════════════════════
+    subgraph cluster_evolution {
+        label="Evolutionary adaptation  (across generations)"
+        labelloc=t labeljust=l
+        style="rounded,dashed"
+        color="#888780" penwidth=1.5
+        fontcolor="#5F5E5A" fontsize=11 fontname="Helvetica-Oblique"
+        bgcolor="#F5F4F0"
+        margin=24
+
+        ga [
+            label="Genetic algorithm\nTournament (K=3), 5-elitism\nGaussian mutation\n(σ=0.1, p_m=0.03)"
+            fillcolor="#D3D1C7" color="#5F5E5A" fontcolor="#2C2C2A"
+            width=2.2
+        ]
+
+        population [
+            label="Population\n30 genotypes ∈ ℝ³⁵"
+            fillcolor="#D3D1C7" color="#5F5E5A" fontcolor="#2C2C2A"
+            width=2.2
+        ]
+
+        ga -> population [xlabel="select,\nmutate" color="#5F5E5A" penwidth=1.2]
+
+        // ═══════════════════════════════════════════════════════
+        // TRIAL LOOP
+        // ═══════════════════════════════════════════════════════
+        subgraph cluster_trial {
+            label="Trial  (3 trials × 20 shapes)"
+            labelloc=t labeljust=l
+            style="rounded,dashed"
+            color="#7F77DD" penwidth=1.3
+            fontcolor="#7F77DD" fontsize=10 fontname="Helvetica-Oblique"
+            bgcolor="#F5F4FE"
+            margin=20
+
+            env [
+                label="Environment\nFalling shapes; random x, v"
+                fillcolor="#E6F1FB" color="#185FA5" fontcolor="#0C447C"
+                width=2.6
+            ]
+
+            // ═══════════════════════════════════════════════════
+            // AGENT BODY
+            // ═══════════════════════════════════════════════════
+            subgraph cluster_agent {
+                label="Agent"
+                labelloc=t labeljust=l
+                style="rounded,dashed"
+                color="#D85A30" penwidth=1.2
+                fontcolor="#D85A30" fontsize=10 fontname="Helvetica-Oblique"
+                bgcolor="#FDF6F4"
+                margin=18
+
+                { rank=same sensors motors }
+                sensors -> motors [style=invis]
+
+                sensors [
+                    label="Sensors\n3 rays → I"
+                    fillcolor="#FAECE7" color="#D85A30" fontcolor="#712B13"
+                    width=1.6
+                ]
+                motors [
+                    label="Motors\nτ_x ẋ = z_R − z_L"
+                    fillcolor="#FAECE7" color="#D85A30" fontcolor="#712B13"
+                    width=1.6
+                ]
+                ctrnn [
+                    label="CTRNN  (controller)\n5 nodes; τ_y ẏ = −y + Wσ(y+b) + I"
+                    fillcolor="#EEEDFE" color="#7F77DD" fontcolor="#3C3489"
+                    penwidth=1.5
+                    width=3.2
+                ]
+
+                subgraph cluster_hp {
+                    label="Homeostatic adaptation  (dev_only, behaviour_only, both)"
+                    labelloc=b labeljust=l
+                    style="rounded,dashed"
+                    color="#0F6E56" penwidth=1.0
+                    fontcolor="#0F6E56" fontsize=8 fontname="Helvetica-Oblique"
+                    bgcolor="#F0FAF6"
+                    margin=14
+
+                    hp [
+                        label="HP rule\nτ_w ẇ = ρ|w|;   τ_b ḃ = ρ"
+                        fillcolor="#E1F5EE" color="#0F6E56" fontcolor="#085041"
+                        width=2.4
+                    ]
+                }
+
+                sensors -> ctrnn [xlabel=" I"]
+                ctrnn -> motors  [xlabel=" z_L, z_R" constraint=false]
+                ctrnn -> hp      [xlabel=" z" style=dashed color="#0F6E56"]
+                hp -> ctrnn      [xlabel=" Δw, Δb" style=dashed color="#0F6E56" constraint=false]
+            }
+
+            // Env <-> Agent coupling
+            env -> sensors [xlabel="  object pos." tailport=s headport=n]
+            motors -> env  [xlabel="ẋ (velocity)  " tailport=n headport=s]
+        }
+
+        // Genotype → phenotype: population instantiates the controller
+        population -> ctrnn [
+            xlabel="  genotype → phenotype\n  (w, b, τ_y)"
+            lhead=cluster_agent
+            color="#3C3489" penwidth=1.3
+        ]
+
+        // Fitness exits the trial box back to GA
+        env -> ga [
+            xlabel="fitness  f\n(Williams eq. 7.3,\nmean over shapes & trials)  "
+            ltail=cluster_trial
+            color="#3B6D11" penwidth=1.3
+            constraint=false
+            tailport=w headport=e
+        ]
+    }
+}
